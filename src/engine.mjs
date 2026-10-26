@@ -172,13 +172,34 @@ export function derive(st, facts){
       options:[`還原 ${short(c.path)}`, `接受並重跑 ${stale.length} 次執行`], rec:0,
       reason:`改到 ${(c.funcs || []).join('、') || '這個檔案'}${f ? `；審查：${f.message}` : ''}。`, answer:prev?.answer ?? null, runs:stale.map(r => r.id) });
   }
+  // 原地打轉（research-cockpit 的「死胡同循環」）：同一支腳本連續 ≥ 3 次執行，程式碼沒變、只改了設定檔
+  const loops = [], byScript = new Map();
+  for (const r of [...runs.values()].sort((a, b) => a.eventId - b.eventId)) if (r.script) (byScript.get(r.script) || byScript.set(r.script, []).get(r.script)).push(r);
+  for (const [script, list] of byScript) {
+    let streak = [list[0]], changed = new Set();
+    const flush = () => { if (streak.length >= 3) loops.push({ script, runs:streak.map(r => r.id), configs:[...changed] }); };
+    for (let i = 1; i < list.length; i++) {
+      const a = list[i - 1], b = list[i], keys = Object.keys(b.hashes || {});
+      const sameCode = keys.length === Object.keys(a.hashes || {}).length && keys.every(f => a.hashes[f] === b.hashes[f]);
+      const cfg = Object.keys({ ...a.configs, ...b.configs }).filter(f => a.configs?.[f] !== b.configs?.[f]);
+      if (sameCode && cfg.length) { streak.push(b); cfg.forEach(f => changed.add(f)); }
+      else { flush(); streak = [b]; changed = new Set(); }
+    }
+    flush();
+  }
+  for (const L of loops) {
+    const id = `LOOP:${L.script}`;
+    decisions.push({ id, auto:'原地打轉', path:L.script, grounds:claims.filter(c => c.runs.some(r => L.runs.includes(r))).map(c => c.id),
+      question:`${L.script} 連續 ${L.runs.length} 次只改設定（${L.configs.join('、')}），程式碼沒變。要繼續調參數，還是停下來換方向？`,
+      options:['停下來換方向', '再調一次'], rec:0, reason:`在同一個地方越調越深（執行 ${L.runs.join('、')}）。換方向通常比再調一次參數有用。`, answer:st.decisions.get(id)?.answer ?? null });
+  }
   for (const d of st.decisions.values()) if (!d.auto) decisions.push({ ...d, rec:d.rec ?? 0 });
 
   const tasks = [...st.tasks.values()];
   const agents = [...st.agents.values()].map(a => ({ ...a, task:tasks.find(t => t.agent === a.name && t.state === 'doing')?.id || null }));
   const changesAll = [...st.changes.values()].filter(c => c.agent !== 'cockpit');
   return {
-    lastId:st.lastId, stages, tasks, runs:[...runs.values()], claims, bad:bad.map(c => c.id), hyps, premises, decisions, files, layers,
+    lastId:st.lastId, stages, tasks, runs:[...runs.values()], claims, bad:bad.map(c => c.id), hyps, premises, decisions, loops, files, layers,
     unreported, broken:[...broken], findings, agents, notes:[...st.notes.values()], links:st.links, moves:Object.fromEntries(st.moves), depSource:facts.dep.source,
     reportRate:changesAll.length ? Math.round(changesAll.filter(c => c.reportedAt).length / changesAll.length * 100) : 100,
   };

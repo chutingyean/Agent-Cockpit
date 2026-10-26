@@ -64,5 +64,8 @@ export function init(root){
   ck.write('progress_reported', { files:written.filter(f => !f.startsWith('.git/')), summary:'cockpit init 寫入 agent 設定、規則檔與 hook', why:'讓所有 agent 都接上駕駛艙的 MCP 與研究規範' }, 'cockpit');
   ck.close();
 
-  return { root, written, codex:`codex mcp add cockpit -- ${q(node)} ${q(BIN)} mcp --repo ${q(root)}` };
+  // Codex 的 MCP 設定在家目錄；不想改全域設定，可以每次用 -c 臨時指定。headless（codex exec）要放行 MCP 工具才能呼叫
+  return { root, written, codex:`codex mcp add cockpit -- ${q(node)} ${q(BIN)} mcp --repo ${q(root)}
+  （codex exec 要能呼叫 cockpit 的工具，請在 ~/.codex/config.toml 的 [mcp_servers.cockpit] 加上 default_tools_approval_mode = "approve"；
+   或不改全域設定，每次執行加：-c 'mcp_servers.cockpit.command="${node}"' -c 'mcp_servers.cockpit.args=["${BIN}","mcp","--repo","${root}"]' -c 'mcp_servers.cockpit.default_tools_approval_mode="approve"'）` };
 }

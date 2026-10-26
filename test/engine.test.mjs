@@ -59,6 +59,15 @@ test('重播：投影到改動之前的事件，結論仍是有效', () => {
   assert.equal(ck.view(before).D.claims[0].health, 'valid');
 });
 
+test('原地打轉：同一支腳本連續 3 次只改設定、程式沒變 → 自動送出裁決', () => {
+  const { root, ck } = withClaim();
+  const cfg = path.join(root, 'configs', 'combo.yaml'), run = () => recordRun(ck, 'python3 eval/run.py --arm combo --seeds 1,2', { agent:'test', capture:true });
+  for (const lr of ['0.0005', '0.0008']) { writeFileSync(cfg, readFileSync(cfg, 'utf8').replace(/lr:.*/, `lr: ${lr}`)); run(); }
+  const D = ck.view().D;
+  assert.deepEqual(D.loops.map(l => [l.script, l.runs]), [['eval/run.py', ['R1', 'R2', 'R3']]]);
+  assert.ok(D.decisions.some(d => d.id === 'LOOP:eval/run.py' && d.auto === '原地打轉' && d.grounds.includes('C1')));
+});
+
 test('假設寫著 verified，但撐它的結論待重驗 → 畫面上降回 pending', () => {
   const { root, ck } = withClaim();
   ck.write('hypothesis_upserted', { hypothesis:{ id:'H-M01', label:'組合範式', status:'verified' } }, 'test');
