@@ -1,4 +1,4 @@
-// 對外介面：MCP、網頁 server、hook 用的 check、cockpit init（AC5、AC8、AC11、AC12、AC14）
+// 對外介面：MCP、網頁 server、hook 用的 check、cockpit init、拖卡（AC5、AC8、AC9、AC12、AC14）
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
@@ -11,6 +11,7 @@ import { openCockpit } from '../src/cockpit.mjs';
 import { createMcpServer } from '../src/mcp.mjs';
 import { createServer } from '../src/server.mjs';
 import { init } from '../src/init.mjs';
+import { recordRun } from '../src/run.mjs';
 import { tempRepo, withClaim, loosenJudge, restoreJudge } from './helpers.mjs';
 
 const BIN = fileURLToPath(new URL('../bin/cockpit.mjs', import.meta.url));
@@ -123,4 +124,37 @@ test('cockpit init：寫好四種 agent 的 MCP 設定、規則檔、Stop hook�
   init(root);   // 再跑一次不會重複寫入
   assert.equal(readFileSync(path.join(root, 'AGENTS.md'), 'utf8').split('agent-cockpit:start').length, 2);
   assert.equal(openCockpit(root).view().D.unreported.length, 0);
+});
+
+test('拖過的卡位置保留：白板送出 node_moved 之後，新事件重新排版、重開駕駛艙、畫布投影都維持原位；重播到拖之前是自動排版的位置', async () => {
+  const { root, ck } = withClaim();
+  const card = board => board.nodes.find(n => n.id === 'C1');
+  const auto = card(ck.view().board), before = ck.store.last();
+  const port = 45000 + Math.floor(Math.random() * 2000), s = createServer(root, { port });
+  await s.listen();
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    const move = (body, origin = base) => fetch(`${base}/api/move`, { method:'POST', headers:{ 'content-type':'application/json', origin }, body:JSON.stringify(body) });
+    assert.equal((await move({ id:'C1', x:'左邊', y:10 })).status, 400, '座標不是數字就拒收');
+    assert.equal((await move({ id:'C1', x:10, y:10 }, 'https://evil.example')).status, 403, '別的網站送的不收');
+    assert.equal((await move({ id:'C1', x:1234, y:567 })).status, 200);
+    const c = card((await (await fetch(`${base}/api/state`)).json()).board);
+    assert.deepEqual([c.x, c.y, c.userPlaced], [1234, 567, true]);
+  } finally { s.server.close(); }
+
+  // 之後又有新的執行與結論，自動排版整個重排，拖過的卡不動
+  const { run } = recordRun(ck, 'python3 eval/run.py --arm module --seeds 1,2', { agent:'test', capture:true });
+  ck.write('claim_recorded', { claim:{ id:'C2', text:'純模組比裸底座高', hypothesis:'H-M00', evidence:[{ run:run.id, path:'results/數據總表.json', key:'module_vs_base' }] } }, 'test');
+  const after = ck.view().board;
+  assert.ok(after.nodes.some(n => n.id === 'C2'));
+  assert.deepEqual([card(after).x, card(after).y], [1234, 567]);
+
+  // 重開駕駛艙（從事件重建）、畫布投影的列也一樣
+  const again = openCockpit(root);
+  assert.deepEqual([card(again.view().board).x, card(again.view().board).y], [1234, 567]);
+  assert.deepEqual({ ...again.store.db.prepare("select x, y from canvas_nodes where id = 'C1'").get() }, { x:1234, y:567 });
+
+  // 重播到拖之前：自動排版的位置
+  const old = card(again.view(before).board);
+  assert.deepEqual([old.x, old.y, !!old.userPlaced], [auto.x, auto.y, false]);
 });
