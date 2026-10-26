@@ -2,11 +2,11 @@
 
 讓 AI agent 做研究時，**每一個結論都能一路追到產生它的程式碼**。所有 agent（Claude Code、Codex、Cursor、Gemini CLI…）透過 MCP 把研究畫到同一張白板上；一個確定性引擎持續檢查整條證據鏈，任何一環被改，相關的卡片立刻變紅。人不必讀程式碼，看白板就知道哪些結論還能信、為什麼。
 
-![白板：三個寫入者、7 個結論全部有效](docs/screenshots/1-board-three-agents.jpg)
+![白板：三個寫入者、7 個結論全部有效](docs/screenshots/1-board-three-agents.png)
 
 偷改評分器之後（沒有 agent 回報），用到它的結論全部變成「待重驗」，紅線從 `judge.py` 一路連到結論，駕駛艙自動送出裁決：
 
-![偷改評分器之後的白板](docs/screenshots/2-board-broken-chain.jpg)
+![偷改評分器之後的白板](docs/screenshots/2-board-broken-chain.png)
 
 ## 快速開始
 
@@ -18,7 +18,7 @@ npm run demo                                        # 產生示範研究專案�
 node bin/cockpit.mjs serve --repo demo/research     # 開白板：http://127.0.0.1:4180
 node bin/cockpit.mjs demo --break                   # 另開終端機：偷改評分器，看白板即時變紅
 node bin/cockpit.mjs demo --restore                 # 改回來，結論恢復有效
-npm test                                            # 27 個測試
+npm test                                            # 31 個測試
 ```
 
 重新產生示範專案（`npm run demo -- --fresh`）前，請先停掉正在跑的 `serve`。
@@ -45,12 +45,13 @@ cockpit run -- python3 eval/run.py --arm combo --seeds 1,2
   │ 數字來自（細到 JSON 欄位）
 執行層   R1  python3 eval/run.py --arm combo     ← cockpit run（命令、commit、程式碼與設定的雜湊、輸出檔）
   │ 執行時用到
-程式碼層 run.py → infer.py、judge.py、stats.py   ← graphify 的 graph.json，或內建的 import 掃描
+程式碼層 run.py → infer.py、judge.py、stats.py   ← graphify 的 graph.json，或內建的輕量版程式碼圖
   │ 屬於
 架構層   「評估流程」                            ← Understand-Anything 的 layers／md² 架構圖／資料夾
-註記：open-code-review 的審查結果、UA 的白話摘要與導覽、answer-me-with-html 的證據簡報
+註記：程式碼審查（open-code-review 或內建規則）、UA 的白話摘要與導覽、answer-me-with-html 的證據簡報
 ```
 
+- **不必另外安裝 graphify 或 open-code-review**：內建輕量版（`cockpit graph`、`cockpit review`），輸出格式與原工具相容；有裝原工具時自動改用。每偵測到一次檔案變更，內建審查就自動看一次改到的行。
 - **判斷靠內容雜湊**：執行記下它用到的每個檔案的雜湊；之後任何一個不一樣，那次執行就過期，引用它的結論變成「待重驗」。改回原樣，雜湊對上就恢復。全部是確定性規則，0 token。
 - **事件是唯一的真相**：`.cockpit/events.jsonl`（進 git，就是 AI 協作紀錄）。`cockpit.db` 的 `canvas_*` 表是給其他工具讀的投影。
 - **只有一個寫入咽喉**（`src/gate.mjs`）：MCP、`cockpit run`、白板上的操作都經過它；結論的證據必須是某次執行真的寫出的檔案。
@@ -67,9 +68,9 @@ cockpit run -- python3 eval/run.py --arm combo --seeds 1,2
 | `cockpit_hypothesis`／`cockpit_premise` | 假設與還沒站穩的前提 |
 | `cockpit_decide`／`cockpit_decisions` | 請人裁決、取回裁決 |
 | `cockpit_report` | 回報改了哪些檔案 |
-| `cockpit_review` | 程式碼審查（open-code-review，或 Delegation mode） |
+| `cockpit_review` | 程式碼審查（有 ocr 跑 ocr，沒有用內建規則；或 Delegation mode） |
 
-畫布工具 `canvas_list`、`canvas_read`、`canvas_search`、`canvas_createNode`、`canvas_link`、`canvas_diagram`（md² 架構圖）、`canvas_structure`（graphify）是通用的畫布操作。
+畫布工具 `canvas_list`、`canvas_read`、`canvas_search`、`canvas_createNode`、`canvas_link`、`canvas_diagram`（md² 架構圖）、`canvas_structure`（程式碼圖與影響範圍）是通用的畫布操作。
 
 ## 專案結構
 
@@ -79,6 +80,8 @@ src/engine.mjs       reduce 與 derive：證據鏈、傳播規則、原地打轉
 src/gate.mjs         寫入咽喉
 src/store.mjs        事件庫與畫布投影
 src/run.mjs          cockpit run
+src/graph.mjs        內建的輕量版 graphify：函式／呼叫圖、社群、核心節點、影響範圍
+src/review.mjs       內建的輕量版 open-code-review：規則審查，預設只看改到的行
 src/mcp.mjs          MCP server
 src/server.mjs       白板 server（SSE、裁決、簡報）
 src/init.mjs         各 agent 的設定
@@ -90,4 +93,4 @@ test/                node:test
 docs/                報告用的截圖、需求文件、實測紀錄
 ```
 
-完整說明見 [REPORT.md](REPORT.md)。授權 GPL-3.0。
+一步一步的教學見 [docs/TUTORIAL.md](docs/TUTORIAL.md)，作業報告見 [REPORT.md](REPORT.md)（Word 版：[docs/Agent-Cockpit-報告.docx](docs/Agent-Cockpit-報告.docx)）。授權 GPL-3.0。

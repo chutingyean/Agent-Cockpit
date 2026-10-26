@@ -1,0 +1,3 @@
+我照裁決還原了 `src/sampler.py`：拿掉 `halton_points` 裡沒回報的隨機擾動（`random.random()*1e-3`）和它的註解，`uniform_points` 沒動，並用 `cockpit_report` 回報。現在白板顯示結論 2/2 有效，C2 不再待重驗，未回報變更也清掉了。
+
+J1 允許重跑偽亂數、更新 C1 並讓 H2 改引用新的執行。我還沒做這步，要我現在用 `cockpit_run` 重跑 `experiments/scaling.py` 嗎？

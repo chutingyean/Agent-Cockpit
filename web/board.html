@@ -43,7 +43,7 @@ code{font:12.5px var(--mono)}
 .replaybar{display:flex;align-items:center;gap:10px;padding:6px 14px;background:var(--warn-soft);border-bottom:1px solid var(--border);font-size:12.5px;color:var(--warn)}
 .replaybar input{flex:1}
 
-.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0;grid-row:3}
 .main.nodock{grid-template-columns:minmax(0,1fr) 0}
 .main.nodock .panel{display:none}
 @media (max-width:760px){.main{grid-template-columns:minmax(0,1fr) 0}.main .panel{display:none}.main.dockopen .panel{display:flex;position:absolute;right:0;top:0;bottom:0;width:min(340px,100%);z-index:6}.status{display:none}}
@@ -291,13 +291,13 @@ function cardHTML(n){
     body = `<div class="t">${esc(c.text)}</div><div class="s">${P === 'experienced' ? esc(val || c.evidence.map(e => e.run).join('、')) : bad ? esc(c.reasons[0]) : `證據：${esc(c.runs.join('、'))}${val ? `（${esc(val)}）` : ''}`}</div>
       <div class="row">${bad ? `<span class="chip bad">⛓ ${P === 'non-technical' ? '這個結論暫時不能信' : '待重驗'}</span>` : c.health === 'valid' ? '<span class="chip ok">✓ 有效</span>' : '<span class="chip warn">沒有證據</span>'}${c.doubt.length ? '<span class="chip warn">⚑ 有疑慮</span>' : ''}</div>`;
   } else if (n.kind === 'run') {
-    const r = find.run(n.id); bad = r.stale;
+    const r = find.run(n.id); bad = r.stale && r.cited;
     head = `▶ 執行 · ${esc(r.agent)}<span class="r">${esc(r.id)}</span>`;
     body = `<div class="t mono">${esc(r.cmd)}</div><div class="s">${P === 'non-technical' ? `${esc(hhmm(r.ts))} 跑的，寫出 ${Object.keys(r.outputs).length} 個檔案` : `commit ${esc(r.commit || '未 commit')} · ${esc(hhmm(r.ts))} · 寫出 ${esc(Object.keys(r.outputs).map(short).join('、') || '沒有')}`}</div>
-      <div class="row">${r.exit !== 0 ? '<span class="chip warn">執行失敗</span>' : ''}${bad ? `<span class="chip bad">${P === 'non-technical' ? '數字已過期' : `過期：${esc(r.hits.map(short).join('、'))} 被改`}</span>` : '<span class="chip ok">✓ 執行後沒變</span>'}</div>`;
+      <div class="row">${r.exit !== 0 ? '<span class="chip warn">執行失敗</span>' : ''}${bad ? `<span class="chip bad">${P === 'non-technical' ? '數字已過期' : `過期：${esc(r.hits.map(short).join('、'))} 被改`}</span>` : r.stale ? '<span class="chip">過期 · 沒有結論引用</span>' : '<span class="chip ok">✓ 執行後沒變</span>'}</div>`;
   } else if (n.kind === 'code') {
-    const f = find.file(n.id); bad = !!f.change && D.runs.some(r => r.hits.includes(f.path));
-    head = `‹› 檔案${f.unreported ? ' <span class="dot" title="未回報"></span>' : ''}<span class="r">${esc(V.D.depSource === 'graphify' ? 'graphify' : 'import')}${f.fromUA ? ' · UA' : ''}</span>`;
+    const f = find.file(n.id); bad = !!f.change && D.runs.some(r => r.cited && r.hits.includes(f.path));
+    head = `‹› 檔案${f.unreported ? ' <span class="dot" title="未回報"></span>' : ''}<span class="r">${esc(V.D.depSource === 'graphify' ? 'graphify' : '程式碼圖')}${f.fromUA ? ' · UA' : ''}</span>`;
     const chips = P === 'non-technical'
       ? `${f.change ? '<span class="chip bad">剛被改過</span>' : ''}${f.finding ? '<span class="chip warn">審查發現問題</span>' : ''}`
       : `${f.change ? `<span class="chip ${bad ? 'bad' : 'warn'}">${esc((f.change.funcs || []).join('、') || '有變更')}${f.unreported ? ' 未回報' : ''}</span>` : ''}${f.finding ? `<span class="chip warn">⚑ ${esc(f.finding.severity)}</span>` : ''}${f.core ? '<span class="chip acc">核心</span>' : ''}${P === 'experienced' && f.complexity ? `<span class="chip">${esc(f.complexity)}</span>` : ''}`;
@@ -441,7 +441,7 @@ function renderPanel(){
         ${hit.length ? `<span class="sub bad">⛓ 讓 ${hit.map(c => c.id).join(' ')} 失效 · <button class="link" data-go="file:${esc(u.path)}">在白板上看</button></span>` : ''}</div>`; }).join('') || '<p style="font-size:12.5px;color:var(--muted)">所有變更都有回報</p>'}
       <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">沒有 agent 回報的變更：git commit 會被擋下，Claude Code 結束回合前會被要求補報。</p></div>
     <div class="sec"><h3>Agent <span class="cnt">回報率 ${D.reportRate}%</span></h3>${D.agents.map(a => `<div class="agent"><span class="ad ${a.task ? '' : 'idle'}"></span><b>${esc(a.name)}</b>
-      ${a.task ? `<button class="link" data-go="${esc(a.task)}">${esc(a.task)}</button>` : '<span style="color:var(--muted)">閒置</span>'}<span class="rate">執行 ${a.runs} · 回報 ${a.reports} · 結論 ${a.claims} · ${esc(hhmm(a.last))}</span></div>`).join('') || '<p style="font-size:12.5px;color:var(--muted)">還沒有 agent 連上</p>'}</div>
+      ${a.task ? `<button class="link" data-go="${esc(a.task)}">${esc(a.task)}</button>` : '<span style="color:var(--muted)">閒置</span>'}<span class="rate">執行 ${a.runs} · 回報 ${a.reports} · 結論 ${a.claims}${a.rejected ? ` · 被拒收 ${a.rejected}` : ''} · ${esc(hhmm(a.last))}</span></div>`).join('') || '<p style="font-size:12.5px;color:var(--muted)">還沒有 agent 連上</p>'}</div>
     <div class="sec"><h3>最近發生 <button class="link" data-seen style="margin-left:auto">標記已讀</button></h3><div class="tl">${V.timeline.slice(0, 30).map(e => `<div class="${e.id > seen && seen ? 'new' : ''} ${e.type === 'file_changed' ? 'bad' : ''}"><time>${esc(hhmm(e.ts))}</time>${esc(e.text)}<em>${esc(e.agent)}</em></div>`).join('')}</div></div>
   </div>`;
 }
@@ -465,14 +465,16 @@ function renderDetail(){
       <dt>寫出</dt><dd>${Object.keys(r.outputs).map(p => `<code>${esc(p)}</code>`).join('<br>') || '沒有'}</dd><dt>依賴來源</dt><dd>${esc(r.deps)}</dd>
       <dt>被引用</dt><dd>${D.claims.filter(c => c.runs.includes(r.id)).map(c => `<button class="link" data-go="${esc(c.id)}">${esc(c.id)}</button>`).join(' ') || '—'}</dd></dl>
       <h3 style="font-size:12px;color:var(--muted);margin:10px 0 4px">用到的程式碼（腳本＋依賴閉包）</h3>
-      ${r.files.map(f => `<div class="li"><span>${r.hits.includes(f) ? '✕' : '✓'}</span><button class="link" data-go="file:${esc(f)}"><code>${esc(f)}</code></button>${r.hits.includes(f) ? '<span class="sub bad">執行後被改 → 這次執行過期</span>' : ''}</div>`).join('')}`;
+      ${r.files.map(f => `<div class="li"><span>${r.hits.includes(f) ? '✕' : '✓'}</span><button class="link" data-go="file:${esc(f)}"><code>${esc(f)}</code></button>${r.hits.includes(f) ? '<span class="sub bad">執行後被改 → 這次執行過期</span>' : ''}${(r.skipped || []).filter(x => x.path === f).map(x => `<span class="sub">有變更，但改的是 ${esc(x.funcs.join('、'))}，這次執行沒用到 → 不算過期</span>`).join('')}</div>`).join('')}`;
   } else if (n.kind === 'code') {
     const f = find.file(n.id), users = D.runs.filter(r => r.files.includes(f.path));
     html = `<div class="kindline">‹› 檔案 · ${esc(D.depSource)}</div><h2><code>${esc(f.path)}</code></h2>
       <div class="ua-box"><span class="k">${f.fromUA ? 'Understand-Anything 摘要' : '檔案開頭的說明（沒有 UA 知識圖時）'}${f.complexity ? ` · ${esc(f.complexity)}` : ''}</span>${esc(f.summary || '（沒有說明）')}${f.lesson ? `<br><br><b>小知識</b>：${esc(f.lesson)}` : ''}</div>
       ${f.change ? `<div class="verdict ${f.unreported ? 'bad' : 'ok'}">${esc(hhmm(f.change.ts))} 有變更${f.change.funcs?.length ? `：${esc(f.change.funcs.join('、'))}` : ''} · +${f.change.add} −${f.change.del}${f.unreported ? '（沒有 agent 回報）' : `（${esc(f.change.reportedBy)} 已回報）`}</div>` : ''}
-      ${f.finding ? `<div class="finding">審查 · ${esc(f.finding.severity)}${f.finding.line ? ` · 第 ${f.finding.line} 行` : ''}：${esc(f.finding.message)}</div>` : ''}
-      <dl class="kv"><dt>被哪些執行用到</dt><dd>${users.map(r => `<button class="link" data-go="${esc(r.id)}">${esc(r.id)}</button>`).join(' ') || '—'}</dd>
+      ${f.findings.map(x => `<div class="finding">審查 · ${esc(x.severity)}${x.line ? ` · 第 ${x.line} 行` : ''}：${esc(x.message)}</div>`).join('')}
+      <dl class="kv">${f.defs.length ? `<dt>函式／類別</dt><dd>${f.defs.map(d => `<code>${esc(d)}</code>`).join(' ')}</dd>` : ''}
+      ${f.callers.length ? `<dt>改動往上影響</dt><dd>${f.callers.map(d => `<code>${esc(d)}</code>`).join(' ')}</dd>` : ''}
+      <dt>被哪些執行用到</dt><dd>${users.map(r => `<button class="link" data-go="${esc(r.id)}">${esc(r.id)}</button>`).join(' ') || '—'}</dd>
       <dt>支撐的結論</dt><dd>${D.claims.filter(c => c.files.includes(f.path)).map(c => `<button class="link" data-go="${esc(c.id)}">${esc(c.id)}</button> ${c.health === 'recheck' ? '⛓' : '✓'}`).join('　') || '—'}</dd></dl>`;
   } else if (n.kind === 'agentTask') {
     const t = D.tasks.find(x => x.id === n.id);

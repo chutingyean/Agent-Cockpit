@@ -2,6 +2,7 @@
 // 判斷「過期」靠內容雜湊：執行記下它用到的每個檔案的雜湊，之後任何一個不一樣就過期；改回原樣，雜湊對上就恢復。
 
 import { topKey } from './repo.mjs';
+import { affected } from './graph.mjs';
 
 export const short = p => String(p).split('/').pop();
 export const STATUS = ['verified', 'optimized', 'refuted', 'open', 'pending', 'info'];   // research-cockpit 的固定詞表
@@ -10,7 +11,7 @@ const SYSTEM_AGENTS = new Set(['git', 'human', 'cockpit', 'cli']);
 
 export function reduce(events){
   const st = { stages:[], stageAt:0, tasks:new Map(), runs:new Map(), claims:new Map(), hyps:new Map(), premises:new Map(), decisions:new Map(),
-    notes:new Map(), links:[], moves:new Map(), known:new Map(), changes:new Map(), agents:new Map(), diagram:null, findings:[], tools:[], lastId:0, events };
+    notes:new Map(), links:[], moves:new Map(), known:new Map(), symbols:new Map(), changes:new Map(), agents:new Map(), diagram:null, findings:[], tools:[], lastId:0, events };
   for (const e of events) {
     st.lastId = e.id;
     if (!SYSTEM_AGENTS.has(e.agent)) {
@@ -19,6 +20,7 @@ export function reduce(events){
       if (e.type === 'run_recorded') a.runs++;
       if (e.type === 'progress_reported') a.reports++;
       if (e.type === 'claim_recorded') a.claims++;
+      if (e.type === 'gate_rejected') a.rejected = (a.rejected || 0) + 1;
       st.agents.set(e.agent, a);
     }
     st.tools.push({ id:e.id, type:e.type });
@@ -29,13 +31,21 @@ export function reduce(events){
       case 'run_recorded':
         st.runs.set(e.run.id, { ...e.run, agent:e.agent, ts:e.ts, eventId:e.id });
         for (const [p, h] of Object.entries(e.run.hashes || {})) if (!st.known.has(p)) st.known.set(p, h);
+        for (const [p, sy] of Object.entries(e.run.symbols || {})) if (!st.symbols.get(p)) st.symbols.set(p, sy);
         for (const [p, h] of Object.entries(e.run.outputs || {})) {
           st.known.set(p, h);
           const c = st.changes.get(p);   // 執行寫出的檔案由那次執行負責，不算未回報
           if (c && c.hash === h) Object.assign(c, { reportedAt:e.id, reportedBy:e.run.id });
         }
         break;
-      case 'file_changed': st.known.set(e.path, e.hash); st.changes.set(e.path, { ...e, reportedAt:null }); break;
+      case 'file_changed':
+        if (st.known.get(e.path) === e.hash) break;   // 兩個 process 同時偵測到同一個變更：第二筆是重複的
+      {
+        // 改到哪些函式：git diff 看得到就用它；還沒進 git 的檔案改用函式雜湊跟上一版比
+        const was = st.symbols.get(e.path), now = e.symbols;
+        const funcs = e.funcs?.length || !was || !now ? e.funcs : Object.keys({ ...was, ...now }).filter(k => k !== '<module>' && was[k] !== now[k]).map(k => `${k}()`);
+        st.known.set(e.path, e.hash); st.symbols.set(e.path, now || null); st.changes.set(e.path, { ...e, funcs, reportedAt:null }); break;
+      }
       case 'progress_reported':
         for (const f of e.files || []) { const c = st.changes.get(f); if (c) { c.reportedAt = e.id; c.reportedBy = e.agent; } }
         if (e.task && st.tasks.has(e.task)) Object.assign(st.tasks.get(e.task), { summary:e.summary, why:e.why, next:e.next, updated:e.ts });
@@ -60,6 +70,15 @@ export function reduce(events){
   return st;
 }
 
+// 依賴檔改了，但改到的全是這次執行碰不到的最外層函式（模組層程式碼沒變）→ 回傳那些函式；否則 null（算過期）
+function untouched(r, f, now){
+  const was = r.symbols?.[f];
+  if (!was || !now || !r.reach) return null;
+  const diff = [...new Set([...Object.keys(was), ...Object.keys(now)])].filter(k => was[k] !== now[k]);
+  if (!diff.length || diff.includes('<module>') || diff.some(k => (r.reach[f] || []).includes(k))) return null;
+  return diff.map(k => `${k}()`);
+}
+
 // 一筆證據還成不成立。有指定 JSON 欄位就只比那一格（別的實驗寫了其他欄位不影響），否則比整個檔案。
 // ctx：{ cur(path) 最新已知的檔案雜湊, keysNow(path) 現在各欄位的雜湊, runs }
 export function evidenceState(r, ev, ctx){
@@ -81,11 +100,19 @@ export function derive(st, facts){
   const runs = new Map();
   for (const r of st.runs.values()) {
     const files = [r.script, ...Object.keys(r.hashes || {}).filter(f => f !== r.script)].filter(Boolean);
-    const hits = files.filter(f => cur(f) !== undefined && cur(f) !== r.hashes[f]);
-    runs.set(r.id, { ...r, files, hits, stale:hits.length > 0 });
+    const changed = files.filter(f => cur(f) !== undefined && cur(f) !== r.hashes[f]);
+    // 依賴檔（不是腳本本身）有函式層級的雜湊時：只改到這次執行碰不到的函式，不算過期
+    const skipped = changed.filter(f => f !== r.script).map(f => ({ path:f, funcs:untouched(r, f, st.symbols.get(f)) })).filter(x => x.funcs);
+    const hits = changed.filter(f => !skipped.some(x => x.path === f));
+    runs.set(r.id, { ...r, files, hits, skipped, stale:hits.length > 0 });
   }
   const ectx = { cur, keysNow:facts.keysNow || (() => null), runs:[...runs.values()] };
-  const findings = st.findings || [];
+  // 審查結果：最近一次 cockpit_review 的 + 偵測到變更時內建審查自動看過的（檔案改回去就消失）
+  const auto = [...st.changes.values()].filter(c => facts.dirty.has(c.path)).flatMap(c => c.findings || []);
+  const findings = [...(st.findings || []).filter(f => !auto.some(a => a.path === f.path && a.line === f.line)), ...auto];
+  const graph = facts.dep.graph;
+  const callersOf = (p, funcs) => graph ? affected(graph, p, funcs).filter(x => x.file !== p || x.id !== p) : [];
+  const defsOf = p => graph ? graph.nodes.filter(n => n.source_file === p && n.kind !== 'file' && n.id !== p).map(n => n.label) : [];
   const claims = [...st.claims.values()].map(c => {
     const reasons = [], used = new Set();
     for (const ev of c.evidence || []) {
@@ -103,7 +130,10 @@ export function derive(st, facts){
   const bad = claims.filter(c => c.health === 'recheck');
 
   const broken = new Set();
-  for (const r of runs.values()) if (r.stale) {
+  // 只有被結論引用的過期執行才畫紅線；被新執行取代、沒人引用的過期執行只是灰掉
+  const cited = new Set(claims.flatMap(c => c.runs));
+  for (const r of runs.values()) r.cited = cited.has(r.id);
+  for (const r of runs.values()) if (r.stale && r.cited) {
     broken.add(`${r.id}>file:${r.script}`);
     r.hits.filter(h => h !== r.script).forEach(h => broken.add(`file:${r.script}>file:${h}`));
   }
@@ -121,7 +151,8 @@ export function derive(st, facts){
     const u = uaNode(p), ch = st.changes.get(p);
     return { path:p, summary:u?.summary || facts.summaryOf(p) || '', lesson:u?.languageNotes || '', complexity:u?.complexity || '', tags:u?.tags || [],
       fromUA:!!u, change:ch && facts.dirty.has(p) ? ch : null, unreported:unreported.some(c => c.path === p),
-      finding:findings.find(f => f.path === p) || null, core:maxDeg >= 3 && (degree.get(p) || 0) === maxDeg };
+      finding:findings.find(f => f.path === p) || null, findings:findings.filter(f => f.path === p), core:maxDeg >= 3 && (degree.get(p) || 0) === maxDeg,
+      defs:defsOf(p), callers:ch && facts.dirty.has(p) ? callersOf(p, ch.funcs).map(x => x.label) : [] };
   });
 
   // 分層：Understand-Anything 的 layers > md² 架構圖的 groups > 依資料夾自動分
@@ -165,12 +196,12 @@ export function derive(st, facts){
   for (const c of unreported) {
     const hit = bad.filter(x => x.files.includes(c.path));
     if (!hit.length) continue;
-    const id = `AUTO:${c.path}`, prev = st.decisions.get(id), stale = [...runs.values()].filter(r => r.hits.includes(c.path));
-    const f = findings.find(x => x.path === c.path);
+    const id = `AUTO:${c.path}`, prev = st.decisions.get(id), stale = [...runs.values()].filter(r => r.cited && r.hits.includes(c.path));
+    const f = findings.find(x => x.path === c.path && x.severity !== 'low'), reach = callersOf(c.path, c.funcs).map(x => x.label);
     decisions.push({ id, auto:'證據鏈失效', chain:true, path:c.path, grounds:hit.map(x => x.id),
       question:`${c.path} 被改了，沒有 agent 回報；${hit.length} 個結論的證據鏈失效。怎麼處理？`,
       options:[`還原 ${short(c.path)}`, `接受並重跑 ${stale.length} 次執行`], rec:0,
-      reason:`改到 ${(c.funcs || []).join('、') || '這個檔案'}${f ? `；審查：${f.message}` : ''}。`, answer:prev?.answer ?? null, runs:stale.map(r => r.id) });
+      reason:`改到 ${(c.funcs || []).join('、') || '這個檔案'}${reach.length ? `，往上影響 ${reach.slice(0, 4).join('、')}` : ''}${f ? `；審查（第 ${f.line} 行）：${f.message}` : ''}。`, answer:prev?.answer ?? null, runs:stale.map(r => r.id) });
   }
   // 原地打轉（research-cockpit 的「死胡同循環」）：同一支腳本連續 ≥ 3 次執行，程式碼沒變、只改了設定檔
   const loops = [], byScript = new Map();
@@ -200,7 +231,7 @@ export function derive(st, facts){
   const changesAll = [...st.changes.values()].filter(c => c.agent !== 'cockpit');
   return {
     lastId:st.lastId, stages, tasks, runs:[...runs.values()], claims, bad:bad.map(c => c.id), hyps, premises, decisions, loops, files, layers,
-    unreported, broken:[...broken], findings, agents, notes:[...st.notes.values()], links:st.links, moves:Object.fromEntries(st.moves), depSource:facts.dep.source,
+    unreported, broken:[...broken], findings, agents, notes:[...st.notes.values()], links:st.links, moves:Object.fromEntries(st.moves), depSource:facts.dep.source, graph:facts.dep.report || null,
     reportRate:changesAll.length ? Math.round(changesAll.filter(c => c.reportedAt).length / changesAll.length * 100) : 100,
   };
 }

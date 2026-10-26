@@ -7,6 +7,8 @@ import { depGraph } from './deps.mjs';
 import { reduce, derive } from './engine.mjs';
 import { check } from './gate.mjs';
 import { layout } from './layout.mjs';
+import { reviewFile } from './review.mjs';
+import { fileSymbols } from './graph.mjs';
 
 // Understand-Anything 的知識圖（有跑過 /understand 才有）
 export function loadUA(root){
@@ -29,7 +31,7 @@ export function openCockpit(root){
   const state = (until = Infinity) => reduce(store.events(until));
 
   // 對照雜湊找出被改過的檔案，記成 file_changed。不管 agent 有沒有回報，真實的變更一定會被記下來。
-  // ponytail: 兩個 process 同時偵測到同一個變更會各記一筆（雜湊相同，結果不變）；要去重再加交易鎖
+  // 兩個 process 同時偵測到同一個變更會各記一筆；reduce 會略過雜湊沒變的那筆
   function syncFiles(){
     const st = state(), now = new Set(dirty(root));
     const candidates = new Set([...now, ...st.known.keys(), ...[...st.premises.values()].flatMap(p => p.grounds || [])]);
@@ -38,7 +40,9 @@ export function openCockpit(root){
       if (p.startsWith('.cockpit/')) continue;
       const h = hashFile(root, p), last = st.known.get(p);
       if (last === undefined ? !now.has(p) : h === last) continue;
-      added.push(store.append('file_changed', { path:p, hash:h, funcs:h ? changedFuncs(root, p) : [], ...diffstat(root, p), deleted:h === null }, 'git'));
+      // 偵測到變更就順手用內建審查看一次改到的行（0 token），結果跟著這筆變更
+      added.push(store.append('file_changed', { path:p, hash:h, funcs:h ? changedFuncs(root, p) : [], ...diffstat(root, p), deleted:h === null,
+        findings:h ? reviewFile(root, p) : [], symbols:h ? fileSymbols(root, p) : null }, 'git'));
     }
     return added;
   }

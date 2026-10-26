@@ -35,6 +35,7 @@ test('MCP：研究流程走得通；不合規的呼叫回傳 isError 與原因�
   assert.match(badClaim.content[0].text, /沒有執行 R9/);
   const events = openCockpit(root).store.events();
   assert.ok(events.some(e => e.type === 'claim_recorded' && e.agent === 'claude-code'));
+  assert.ok(events.some(e => e.type === 'gate_rejected' && e.tool === 'cockpit_claim' && e.agent === 'claude-code'), '被拒收的呼叫也留紀錄');
 });
 
 test('MCP：兩個 agent 同時寫入，各自的任務卡都在，事件沒有遺失', async () => {

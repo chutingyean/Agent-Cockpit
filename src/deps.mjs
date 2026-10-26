@@ -1,13 +1,14 @@
-// 檔案之間的依賴：有 graphify 的 graph.json 就用它（AST、跨 40 種語言）；沒有就退回內建的 import 掃描（Python / JS）。
+// 檔案之間的依賴：有 graphify 的 graph.json 就用它（AST、跨 40 種語言）；沒有就用內建的輕量版（graph.mjs，Python / JS）。
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { listFiles, git } from './repo.mjs';
+import { listFiles } from './repo.mjs';
+import { buildGraph } from './graph.mjs';
 
 // graphify 的連線種類裡，代表「用到」的那些（對齊它 affected.py 的 DEFAULT_AFFECTED_RELATIONS）
 const DEP_RELATIONS = new Set(['calls', 'indirect_call', 'references', 'imports', 'imports_from', 'dynamic_import', 're_exports',
   'inherits', 'extends', 'implements', 'uses', 'mixes_in', 'embeds']);
 
-export function fromGraphify(root, g){
+export function fromGraphify(root, g, source = 'graphify'){
   const fileOf = new Map(), adj = new Map();
   const norm = f => f && path.relative(root, path.resolve(root, f)).split(path.sep).join('/');
   for (const n of g.nodes || []) if (n.source_file) fileOf.set(n.id, norm(n.source_file));
@@ -16,45 +17,20 @@ export function fromGraphify(root, g){
     const a = fileOf.get(l.source ?? l._src), b = fileOf.get(l.target ?? l._tgt);
     if (a && b && a !== b) (adj.get(a) || adj.set(a, new Set()).get(a)).add(b);
   }
-  return { source:'graphify', adj };
+  return { source, adj, graph:g };
 }
 
-// Python：import x / from x import y；JS：import … from './x' / require('./x')。只解析得到 repo 內檔案的
-export function scanImports(root, files){
-  const set = new Set(files), adj = new Map();
-  const add = (a, b) => { if (b && b !== a) (adj.get(a) || adj.set(a, new Set()).get(a)).add(b); };
-  const pick = (...cands) => cands.find(c => set.has(c));
-  for (const f of files) {
-    let src = '';
-    if (!/\.(py|m?js|cjs|ts)$/.test(f)) continue;
-    try { src = readFileSync(path.join(root, f), 'utf8'); } catch { continue; }
-    const dir = path.posix.dirname(f) === '.' ? '' : path.posix.dirname(f) + '/';
-    if (f.endsWith('.py')) {
-      const mods = [];
-      for (const m of src.matchAll(/^\s*from\s+([\w.]+)\s+import/gm)) mods.push(m[1]);
-      for (const m of src.matchAll(/^\s*import\s+([\w.]+(?:\s*,\s*[\w.]+)*)/gm)) mods.push(...m[1].split(',').map(s => s.trim()));
-      for (const mod of mods) {
-        const p = mod.replace(/\./g, '/');
-        add(f, pick(`${dir}${p}.py`, `${p}.py`, `${dir}${p}/__init__.py`, `${p}/__init__.py`));
-      }
-    } else {
-      for (const m of src.matchAll(/(?:from\s+|import\s*\(\s*|require\s*\(\s*)['"](\.[^'"]+)['"]/g)) {
-        const p = path.posix.normalize(dir + m[1]);
-        add(f, pick(p, `${p}.js`, `${p}.mjs`, `${p}.ts`, `${p}/index.js`));
-      }
-    }
-  }
-  return { source:'import 掃描', adj };
-}
-
+// 快取的鍵是程式檔的 mtime：同一個檔案改第二次，git status 不會變，所以不能只看 status
 let cache = null;
 export function depGraph(root){
-  const gpath = path.join(root, 'graphify-out', 'graph.json');
-  const sig = (existsSync(gpath) ? statSync(gpath).mtimeMs : 0) + ':' + git(root, 'status', '--porcelain') + git(root, 'rev-parse', 'HEAD');
+  const gpath = path.join(root, 'graphify-out', 'graph.json'), files = listFiles(root);
+  // ponytail: 每次都 stat 全部檔案，幾千個檔案以內夠快；更大的 repo 改用 fs.watch
+  const mt = f => { try { return statSync(path.join(root, f)).mtimeMs; } catch { return 0; } };
+  const sig = ['graphify-out/graph.json', ...files].map(f => `${f}:${mt(f)}`).join('|');
   if (cache?.root === root && cache.sig === sig) return cache.dep;
   let dep = null;
   if (existsSync(gpath)) { try { dep = fromGraphify(root, JSON.parse(readFileSync(gpath, 'utf8'))); } catch {} }
-  dep ||= scanImports(root, listFiles(root));
+  if (!dep) { const b = buildGraph(root, files); dep = { ...fromGraphify(root, b.graph, '內建程式碼圖'), report:b.report }; }
   cache = { root, sig, dep };
   return dep;
 }

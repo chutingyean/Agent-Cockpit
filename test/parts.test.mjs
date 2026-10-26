@@ -1,20 +1,61 @@
-// 各個零件：依賴分析（graphify / import 掃描）、事件庫與畫布投影、md² 驗證、簡報、審查結果
+// 各個零件：程式碼圖（graphify / 內建輕量版）、內建審查、事件庫與畫布投影、md² 驗證、簡報、審查結果
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rmSync, readFileSync } from 'node:fs';
+import { rmSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { scanImports, fromGraphify, closure } from '../src/deps.mjs';
+import { fromGraphify, closure } from '../src/deps.mjs';
+import { buildGraph, affected } from '../src/graph.mjs';
+import { review } from '../src/review.mjs';
 import { listFiles } from '../src/repo.mjs';
 import { openStore } from '../src/store.mjs';
 import { validateDiagram } from '../src/diagram.mjs';
 import { normalizeFindings, renderBrief } from '../src/adapters.mjs';
 import { briefMarkdown } from '../src/engine.mjs';
-import { tempRepo, withClaim, loosenJudge } from './helpers.mjs';
+import { tempRepo, withClaim, loosenJudge, restoreJudge } from './helpers.mjs';
 
-test('內建 import 掃描：Python 的同層 import 解析成檔案依賴', () => {
-  const root = tempRepo(), dep = scanImports(root, listFiles(root));
+test('內建程式碼圖：抽出函式與跨檔呼叫，輸出 graphify 格式；收斂成檔案依賴後閉包正確', () => {
+  const root = tempRepo(), { graph, report } = buildGraph(root, listFiles(root));
+  const calls = graph.links.filter(l => l.relation === 'calls').map(l => `${l.source} -> ${l.target}`);
+  assert.ok(calls.includes('eval/run.py::run_arm -> eval/judge.py::score'));
+  assert.ok(calls.includes('eval/judge.py::score -> eval/judge.py::parse_answer'));
+  assert.equal(new Set(calls).size, calls.length, '同一條呼叫只記一次');
+  const dep = fromGraphify(root, graph);
   assert.deepEqual(closure(dep, 'eval/run.py'), ['eval/infer.py', 'eval/judge.py', 'eval/stats.py']);
   assert.deepEqual(closure(dep, 'train/ablate_templates.py'), ['train/prompt.py', 'train/sft.py']);
+  assert.equal(report.god[0].label, 'main()');
+  assert.ok(report.communities.length >= 2);
+});
+
+test('影響範圍：改 parse_answer() 往上找到 score()、run_arm()、main()', () => {
+  const root = tempRepo(), { graph } = buildGraph(root, listFiles(root));
+  const hit = affected(graph, 'eval/judge.py', ['parse_answer()']).map(x => x.label);
+  for (const f of ['score()', 'run_arm()', 'main()']) assert.ok(hit.includes(f), f);
+});
+
+test('內建審查：預設只看改到的行；抓得到評分比對變鬆、訓練讀測試資料、沒固定亂數種子', () => {
+  const root = tempRepo();
+  assert.deepEqual(review(root, { all:true }), [], '示範專案原本是乾淨的');
+  loosenJudge(root);
+  writeFileSync(path.join(root, 'train', 'leak.py'), 'import random\n\ndef pick(xs=[]):\n    d = open("data/test.jsonl").read()\n    return random.choice(xs)\n');
+  const f = review(root), rules = f.map(x => `${x.path}:${x.line}:${x.rule}:${x.severity}`);
+  assert.ok(rules.includes('eval/judge.py:10:loose-match:high'));
+  assert.ok(rules.includes('train/leak.py:4:test-leak:high'));
+  assert.ok(rules.includes('train/leak.py:5:unseeded:medium'));
+  assert.ok(rules.includes('train/leak.py:3:mutable-default:medium'));
+  assert.ok(!f.some(x => x.path === 'eval/judge.py' && x.line !== 10), '沒改到的行不審');
+});
+
+test('偵測到變更就自動審查：發現跟著變更走，寫進自動裁決與結論的疑慮；改回去就消失', () => {
+  const { root, ck } = withClaim();
+  loosenJudge(root); ck.syncFiles();
+  let D = ck.view().D;
+  const d = D.decisions.find(x => x.id === 'AUTO:eval/judge.py');
+  assert.match(d.reason, /往上影響 .*score\(\)/);
+  assert.match(d.reason, /審查（第 10 行）/);
+  assert.equal(D.claims.find(c => c.id === 'C1').doubt[0].rule, 'loose-match');
+  restoreJudge(root); ck.syncFiles();
+  D = ck.view().D;
+  assert.equal(D.findings.length, 0);
 });
 
 test('graphify 的 graph.json：函式層級的 calls 收斂成檔案依賴，contains 不算', () => {

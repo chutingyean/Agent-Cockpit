@@ -19,14 +19,15 @@ export function describe(e){
     case 'task_upserted': return `任務 ${e.task.id}「${e.task.title}」${{ doing:'進行中', blocked:'卡住', done:'完成' }[e.task.state]}：${e.task.summary}`;
     case 'run_recorded': return `執行 ${e.run.id}：${e.run.cmd}（exit ${e.run.exit}）`;
     case 'claim_recorded': return `登記結論 ${e.claim.id}：${e.claim.text}`;
-    case 'file_changed': return `${e.path} ${e.deleted ? '被刪除' : '有變更'}${e.funcs?.length ? `（${e.funcs.join('、')}）` : ''}`;
+    case 'file_changed': return `${e.path} ${e.deleted ? '被刪除' : '有變更'}${e.funcs?.length ? `（${e.funcs.join('、')}）` : ''}${e.findings?.length ? `；內建審查 ${e.findings.length} 筆` : ''}`;
     case 'progress_reported': return `回報 ${e.files.length} 個檔案：${e.summary}`;
     case 'decision_requested': return `請求裁決 ${e.decision.id}：${e.decision.question}`;
     case 'decision_answered': return `裁決 ${e.decisionId} → 選項 ${e.answer + 1}${e.comment ? `（${e.comment}）` : ''}`;
     case 'premise_recorded': return `登記前提 ${e.premise.id}：${e.premise.text}`;
     case 'premise_resolved': return `前提 ${e.premiseId} → ${e.verdict === 'verified' ? '已驗證' : '推翻'}`;
     case 'hypothesis_upserted': return `假設 ${e.hypothesis.id} → ${e.hypothesis.status}`;
-    case 'review_recorded': return `程式碼審查：${e.findings.length} 筆發現`;
+    case 'gate_rejected': return `${e.tool} 被拒收：${e.message}`;
+    case 'review_recorded': return `程式碼審查（${e.tool || '回報'}）：${e.findings.length} 筆發現`;
     case 'diagram_updated': return `更新架構圖：${e.diagram.meta?.title || ''}`;
     case 'node_created': return `新增卡片 ${e.node.id}：${e.node.title}`;
     case 'edge_created': return `連線 ${e.edge.from} → ${e.edge.to}`;

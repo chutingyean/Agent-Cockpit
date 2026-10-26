@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Agent Cockpit 的命令列：init / serve / mcp / run / check / status / demo
+// Agent Cockpit 的命令列：init / serve / mcp / run / graph / review / check / status / demo
 import { cpSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -10,6 +10,7 @@ import { init } from '../src/init.mjs';
 import { createServer } from '../src/server.mjs';
 import { serveStdio, overviewText } from '../src/mcp.mjs';
 import { git } from '../src/repo.mjs';
+import { runGraphify, runOcr } from '../src/adapters.mjs';
 import { seedDemo, JUDGE_STRICT, JUDGE_LOOSE } from '../src/demo.mjs';
 
 const argv = process.argv.slice(2), dash = argv.indexOf('--');
@@ -25,6 +26,8 @@ const HELP = `用法：cockpit <命令> [--repo 研究專案路徑]
   serve [--port 4180]   開白板（http://127.0.0.1:4180）
   mcp                   MCP stdio server（由 agent 啟動）
   run -- <命令>          執行實驗並記錄（命令、commit、程式碼雜湊、輸出檔）
+  graph                 重建程式碼圖（有 graphify 用 graphify，沒有用內建的輕量版）
+  review [--all]        程式碼審查（有 ocr 用 ocr，沒有用內建規則；預設只看改到的行）
   check [--hook git|claude]  檢查未回報的變更（hook 用）
   status                印出駕駛艙摘要
   demo [--break|--restore]   產生示範研究專案；--break 偷改評分器、--restore 改回來`;
@@ -48,6 +51,20 @@ async function main(){
       const { run } = recordRun(openCockpit(repo), rest.join(' '), { agent:process.env.COCKPIT_AGENT || 'cli' });
       console.error(`\n[cockpit] 執行 ${run.id} 已記錄：用到 ${Object.keys(run.hashes).length} 個程式檔，寫出 ${Object.keys(run.outputs).join('、') || '沒有檔案'}`);
       process.exitCode = run.exit;
+      return;
+    }
+    case 'graph': {
+      const r = runGraphify(repo);
+      console.log(r.message);
+      if (r.report) console.log(readFileSync(path.join(repo, '.cockpit', 'graph', 'GRAPH_REPORT.md'), 'utf8'));
+      process.exitCode = r.ok ? 0 : 1;
+      return;
+    }
+    case 'review': {
+      const r = runOcr(repo, { all:flag('all') });
+      if (!r.ok) { console.error(r.message); process.exitCode = 1; return; }
+      openCockpit(repo).write('review_recorded', { findings:r.findings, tool:r.tool }, 'cli');
+      console.log(`${r.tool}：${r.findings.length} 筆發現（已記到白板）\n${r.findings.map(f => `  ${f.severity.padEnd(6)} ${f.path}:${f.line ?? '-'}  ${f.message}`).join('\n')}`);
       return;
     }
     case 'check': return check(opt('hook'));

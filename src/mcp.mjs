@@ -8,6 +8,8 @@ import { recordRun } from './run.mjs';
 import { GateError } from './gate.mjs';
 import { validateDiagram } from './diagram.mjs';
 import { runGraphify, runOcr } from './adapters.mjs';
+import { depGraph } from './deps.mjs';
+import { affected } from './graph.mjs';
 
 export const RULES = `Agent Cockpit 規範（研究證據鏈）：
 1. 每個 session 開工先呼叫 cockpit_overview，看要你處理的事、待重驗的結論、未回報的變更。
@@ -36,7 +38,8 @@ export function overviewText(D){
   if (risky.length) L.push(`高風險前提：${risky.map(p => `${p.id} ${p.text}`).join('；')}`);
   const doing = D.tasks.filter(t => t.state !== 'done');
   if (doing.length) L.push(`進行中的任務：${doing.map(t => `${t.id} ${t.title}（${t.agent}，${t.state}）`).join('；')}`);
-  L.push(`依賴來源：${D.depSource}；執行 ${D.runs.length} 次；回報率 ${D.reportRate}%`);
+  if (D.findings.some(f => f.severity === 'high')) L.push(`審查發現（high）：${D.findings.filter(f => f.severity === 'high').map(f => `${f.path}:${f.line} ${f.message}`).join('；')}`);
+  L.push(`依賴來源：${D.depSource}${D.graph?.god.length ? `（核心：${D.graph.god.slice(0, 3).map(g => g.label).join('、')}）` : ''}；執行 ${D.runs.length} 次；回報率 ${D.reportRate}%`);
   return L.join('\n');
 }
 
@@ -45,7 +48,11 @@ export function createMcpServer(cockpit){
   const agent = () => server.server.getClientVersion()?.name || 'unknown-agent';
   const tool = (name, description, inputSchema, fn) => server.registerTool(name, { description, inputSchema }, async args => {
     try { return await fn(args); }
-    catch (e) { if (e instanceof GateError) return bad(e.message); throw e; }
+    catch (e) {
+      if (!(e instanceof GateError)) throw e;
+      cockpit.store.append('gate_rejected', { tool:name, message:e.message }, agent());   // 被擋下的也留紀錄：協作紀錄看得到 agent 怎麼被糾正
+      return bad(e.message);
+    }
   });
   const st = () => cockpit.state();
 
@@ -129,17 +136,20 @@ ${log.slice(-1500)}`);
     files:z.array(z.string()), summary:z.string(), why:z.string(), next:z.string().optional(), task:z.string().optional(),
   }, async args => { cockpit.write('progress_reported', args, agent()); return ok(`已回報 ${args.files.length} 個檔案`); });
 
-  tool('cockpit_review', '程式碼審查（open-code-review）。不給 findings：裝了 ocr 就跑 ocr review；給 findings：Delegation mode，由你照 ocr 的規則審查後回報。審查結果會沿證據鏈標出受威脅的結論。', {
+  tool('cockpit_review', '程式碼審查。不給 findings：裝了 open-code-review 就跑 ocr review，沒裝就用內建的規則審查（預設只看改到的行，all=true 看全部）；給 findings：Delegation mode，由你審查後回報。審查結果會沿證據鏈標出受威脅的結論。', {
     findings:z.array(z.object({ path:z.string(), line:z.number().int().optional(), severity:z.enum(['high', 'medium', 'low']), message:z.string() })).optional(),
-  }, async ({ findings }) => {
+    all:z.boolean().optional(),
+  }, async ({ findings, all }) => {
+    let by = agent();
     if (!findings) {
-      const r = runOcr(cockpit.root);
+      const r = runOcr(cockpit.root, { all });
       if (!r.ok) return bad(r.message);
-      findings = r.findings;
+      findings = r.findings; by = r.tool;
     }
-    cockpit.write('review_recorded', { findings, tool:'open-code-review' }, agent());
+    cockpit.write('review_recorded', { findings, tool:by }, agent());
     const D = cockpit.view().D;
-    return ok(`已記錄 ${findings.length} 筆審查結果；受影響的結論：${D.claims.filter(c => c.doubt.length).map(c => c.id).join('、') || '沒有'}`);
+    return ok(`已記錄 ${findings.length} 筆審查結果（${by}）；受影響的結論：${D.claims.filter(c => c.doubt.length).map(c => c.id).join('、') || '沒有'}`,
+      findings.map(f => `${f.severity} ${f.path}:${f.line ?? '-'} ${f.message}`));
   });
 
   // —— 通用畫布工具 ——
@@ -185,9 +195,19 @@ ${log.slice(-1500)}`);
     return ok(`架構圖已更新：${diagram.groups?.length || 0} 個群組、${diagram.nodes.length} 個節點`);
   });
 
-  tool('canvas_structure', '重建程式碼結構：裝了 graphify 就跑 graphify update .，沒裝就用內建的 import 掃描。', {}, async () => {
+  tool('canvas_structure', '重建程式碼圖：裝了 graphify 就跑 graphify update .，沒裝就用內建的輕量版。回傳核心節點、社群、意外連結；給 file（與 funcs）就回傳改它會影響到哪些函式。', {
+    file:z.string().optional(), funcs:z.array(z.string()).optional(),
+  }, async ({ file, funcs }) => {
+    if (file) {
+      const g = depGraph(cockpit.root).graph;
+      if (!g) return bad('還沒有程式碼圖');
+      const hit = affected(g, file, funcs || []);
+      return ok(`改 ${file}${funcs?.length ? ` 的 ${funcs.join('、')}` : ''} 會影響 ${hit.length} 個函式／檔案：`, hit.map(x => `${x.file} ${x.label}`));
+    }
     const r = runGraphify(cockpit.root);
-    return ok(r.message);
+    if (!r.ok) return bad(r.message);
+    return ok(r.message, r.report && { 核心節點:r.report.god.map(g => `${g.label}（${g.file}，${g.degree}）`), 社群:r.report.communities.map(c => `${c.label}：${c.files.join('、')}`),
+      意外連結:r.report.surprises.map(x => `${x.from} → ${x.to}（${x.fromFile} → ${x.toFile}）`), 建議問題:r.report.questions });
   });
 
   return server;

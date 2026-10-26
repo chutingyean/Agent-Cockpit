@@ -5,6 +5,7 @@ import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { head, dirty, hashFile, snapshot, inside, jsonKeyHashes } from './repo.mjs';
 import { depGraph, closure } from './deps.mjs';
+import { fileSymbols, reach } from './graph.mjs';
 
 const SCRIPT_EXT = /\.(py|m?js|cjs|ts|sh|r|jl)$/i;
 const CONFIG = /(^|\/)(configs?|conf|params)\/|\.(ya?ml|toml|ini|cfg)$/i;
@@ -25,6 +26,9 @@ export function recordRun(cockpit, cmd, { agent = 'cli', capture = false } = {})
   const dep = depGraph(root);
   const files = script ? [script, ...closure(dep, script)] : [];
   const hashes = Object.fromEntries(files.map(f => [f, hashFile(root, f)]));
+  // 依賴檔裡每個函式的雜湊 + 這次執行碰得到哪些函式：之後只改到碰不到的函式，就不算過期
+  const symbols = Object.fromEntries(files.slice(1).map(f => [f, fileSymbols(root, f)]).filter(([, v]) => v));
+  const reached = dep.graph && script ? reach(dep.graph, script, files.slice(1)) : {};
   const before = snapshot(root), commit = head(root), dirtyBefore = dirty(root), t0 = Date.now();
   // 設定檔的雜湊：用來偵測「程式沒變、只一直改設定」的原地打轉
   const configs = Object.fromEntries([...before.keys()].filter(p => CONFIG.test(p) && !p.startsWith('.')).slice(0, 200).map(p => [p, hashFile(root, p)]));
@@ -43,7 +47,7 @@ export function recordRun(cockpit, cmd, { agent = 'cli', capture = false } = {})
 
   const log = [res.stdout, res.stderr].filter(Boolean).join('\n').slice(-20000);
   if (capture) { mkdirSync(path.join(root, '.cockpit', 'runs'), { recursive:true }); writeFileSync(path.join(root, '.cockpit', 'runs', `${id}.log`), log); }
-  const run = { id, cmd, commit, dirty:dirtyBefore.filter(p => files.includes(p)), script, hashes, configs, outputs, outputKeys, exit:res.status ?? -1, ms:Date.now() - t0, deps:dep.source };
+  const run = { id, cmd, commit, dirty:dirtyBefore.filter(p => files.includes(p)), script, hashes, symbols, reach:reached, configs, outputs, outputKeys, exit:res.status ?? -1, ms:Date.now() - t0, deps:dep.source };
   const event = cockpit.write('run_recorded', { run }, agent, { sync:false });
   return { run, event, log };
 }

@@ -8,3 +8,4 @@ demo/research/
 .cockpit/cockpit.db*
 .DS_Store
 .claude/
+demo/live/

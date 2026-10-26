@@ -39,6 +39,20 @@ test('改回原樣 → 雜湊對上，結論恢復有效、自動裁決消失', 
   assert.ok(!D.decisions.some(d => d.auto));
 });
 
+test('函式層級：依賴檔只加了這次執行碰不到的函式 → 不算過期；改到模組層程式碼 → 過期', () => {
+  const { root, ck } = withClaim();
+  const f = path.join(root, 'eval', 'judge.py'), orig = readFileSync(f, 'utf8');
+  writeFileSync(f, orig + '\n\ndef strict_rate(items):\n    return sum(1 for i in items if i) / len(items)\n');
+  ck.syncFiles();
+  let D = ck.view().D;
+  assert.equal(D.claims.find(c => c.id === 'C1').health, 'valid');
+  assert.deepEqual(D.runs[0].skipped, [{ path:'eval/judge.py', funcs:['strict_rate()'] }]);
+  writeFileSync(f, 'import os\n' + orig);
+  ck.syncFiles();
+  D = ck.view().D;
+  assert.equal(D.claims.find(c => c.id === 'C1').health, 'recheck');
+});
+
 test('多次執行寫進同一個數據總表：證據只看自己那一格；手改那一格才失效', () => {
   const { root, ck } = withClaim();
   recordRun(ck, 'python3 eval/run.py --arm module --seeds 1,2', { agent:'test', capture:true });   // 寫其他欄位
