@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>架構</title>
+<!-- 報告用圖：docs/figures/architecture.png 由這個頁面以 2 倍解析度截圖產生 -->
+<style>
+:root{--ink:#1f2933;--muted:#5f6b7a;--line:#9aa5b1;--acc:#2f6fed;--ok:#1a8a4a;--warn:#b7791f}
+*{box-sizing:border-box}
+body{margin:0;width:1200px;height:510px;background:#fff;color:var(--ink);font:16px/1.4 -apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;position:relative}
+.b{position:absolute;border:2px solid var(--c,#c9d2dc);border-radius:10px;padding:10px 14px;background:#fff}
+.b h4{margin:0 0 3px;font-size:16.5px;color:var(--c,var(--ink))}
+.b p{margin:0;font-size:14px;color:var(--muted)}
+code{font:13.5px ui-monospace,Menlo,monospace;color:var(--ink)}
+.k{position:absolute;font-size:13px;color:var(--muted);background:#fff;padding:0 4px}
+svg{position:absolute;inset:0}
+</style></head><body>
+<svg width="1200" height="510"><defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9aa5b1"/></marker></defs>
+<g stroke="#9aa5b1" stroke-width="2.2" fill="none" marker-end="url(#a)">
+<path d="M300,70 C360,70 360,190 418,190"/><path d="M300,190 L418,190"/><path d="M300,310 C360,310 360,190 418,190"/>
+<path d="M620,190 L698,190"/>
+<path d="M800,240 L800,318"/>
+<path d="M300,440 C520,440 560,365 698,365"/>
+<path d="M902,365 L978,365"/>
+</g></svg>
+<div class="b" style="left:30px;top:30px;width:270px;--c:var(--acc)"><h4>任何支援 MCP 的 agent</h4><p>Claude Code、Codex、Cursor、Gemini CLI<br>→ <code>cockpit mcp</code>（19 個工具）</p></div>
+<div class="b" style="left:30px;top:155px;width:270px;--c:var(--acc)"><h4>終端機</h4><p><code>cockpit run -- 命令</code><br>記下雜湊、輸出檔</p></div>
+<div class="b" style="left:30px;top:275px;width:270px;--c:var(--acc)"><h4>白板上的人</h4><p>裁決、前提、拖卡<br>→ <code>cockpit serve</code>（只收本機）</p></div>
+<div class="b" style="left:420px;top:140px;width:200px;--c:#d13434"><h4>寫入咽喉</h4><p><code>gate.mjs</code><br>不合規就拒收，<br>告訴 agent 怎麼改</p></div>
+<div class="b" style="left:700px;top:140px;width:200px;--c:var(--ink)"><h4>事件庫</h4><p><code>cockpit.db</code>（只追加）<br>鏡像 <code>events.jsonl</code><br>進 git = 協作紀錄</p></div>
+<div class="b" style="left:700px;top:320px;width:200px;--c:var(--ok)"><h4>引擎</h4><p><code>reduce</code> → <code>derive</code><br>純函式、可重播<br>0 token</p></div>
+<div class="b" style="left:30px;top:395px;width:270px;--c:var(--warn)"><h4>專案事實</h4><p>git 狀態、程式碼圖、<br>自動審查、UA 知識圖</p></div>
+<div class="b" style="left:980px;top:320px;width:190px;--c:var(--acc)"><h4>瀏覽器白板</h4><p>SSE 即時更新<br>證據鏈、駕駛艙、<br>導覽、簡報</p></div>
+<span class="k" style="left:330px;top:120px">寫入</span>
+<span class="k" style="left:630px;top:168px">追加</span>
+<span class="k" style="left:810px;top:270px">事件</span>
+<span class="k" style="left:320px;top:452px">derive 時讀取；每 1.5 秒對帳，真實的檔案變更一定記成事件</span>
+<span class="k" style="left:910px;top:343px">SSE</span>
+</body></html>

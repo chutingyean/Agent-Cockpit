@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>證據圖</title>
+<!-- 報告用圖：docs/figures/evidence-graph.png 由這個頁面以 2 倍解析度截圖產生 -->
+<style>
+:root{--ink:#1f2933;--muted:#5f6b7a;--line:#c9d2dc;--claim:#2f6fed;--run:#5f6b7a;--code:#0f8a8a;--layer:#7c4dcc;--note:#b7791f}
+*{box-sizing:border-box}
+body{margin:0;width:1200px;height:470px;background:#fff;color:var(--ink);font:17px/1.45 -apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;padding:28px 36px}
+.row{display:grid;grid-template-columns:130px 1fr 410px;gap:18px;align-items:center}
+.lab{font-weight:700;font-size:18px}
+.box{border:2px solid var(--c);border-left-width:8px;border-radius:10px;padding:12px 16px;background:#fff}
+.box b{color:var(--c)}
+.src{font-size:15px;color:var(--muted);border:1.5px dashed var(--line);border-radius:10px;padding:10px 14px}
+.src strong{color:var(--ink)}
+.arrow{display:grid;grid-template-columns:130px 1fr 410px;gap:18px;height:40px}
+.arrow div:nth-child(2){position:relative;font-size:14.5px;color:var(--muted);padding-left:40px;display:flex;align-items:center}
+.arrow div:nth-child(2)::before{content:"";position:absolute;left:18px;top:0;bottom:0;border-left:2.5px solid var(--line)}
+.arrow div:nth-child(2)::after{content:"";position:absolute;left:12px;bottom:-2px;border:7px solid transparent;border-top:9px solid var(--line);border-bottom:0}
+code{font:15px ui-monospace,Menlo,monospace}
+.notes{margin-top:22px;display:grid;grid-template-columns:130px 1fr;gap:18px;align-items:center}
+.chips{display:flex;gap:10px;flex-wrap:wrap}
+.chip{border:1.5px solid var(--note);color:#7a5208;background:#fdf6e7;border-radius:999px;padding:5px 12px;font-size:15px}
+</style></head><body>
+<div class="row"><div class="lab">主張層</div><div class="box" style="--c:var(--claim)"><b>結論 C1</b>「組合臂準確率 91.25%」</div><div class="src"><strong>research-cockpit</strong>：結論、假設、前提、裁決</div></div>
+<div class="arrow"><div></div><div>數字來自（細到 JSON 的某一格）</div><div></div></div>
+<div class="row"><div class="lab">執行層</div><div class="box" style="--c:var(--run)"><b>執行 R1</b>　<code>python3 eval/run.py --arm combo</code></div><div class="src"><strong>cockpit run</strong>：命令、commit、雜湊、輸出檔</div></div>
+<div class="arrow"><div></div><div>執行時用到（依賴閉包，細到函式）</div><div></div></div>
+<div class="row"><div class="lab">程式碼層</div><div class="box" style="--c:var(--code)"><b>程式檔</b>　<code>run.py → infer.py、judge.py、stats.py</code></div><div class="src"><strong>graphify</strong> 或內建程式碼圖：呼叫關係</div></div>
+<div class="arrow"><div></div><div>屬於</div><div></div></div>
+<div class="row"><div class="lab">架構層</div><div class="box" style="--c:var(--layer)"><b>分層</b>「評估流程」</div><div class="src"><strong>Understand-Anything</strong> 的 layers／<strong>md²</strong> 架構圖</div></div>
+<div class="notes"><div class="lab">註記</div><div class="chips"><span class="chip">程式碼審查（open-code-review 或內建規則）</span><span class="chip">白話摘要與導覽（Understand-Anything）</span><span class="chip">證據簡報（answer-me-with-html）</span></div></div>
+</body></html>

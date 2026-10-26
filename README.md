@@ -40,16 +40,7 @@ cockpit run -- python3 eval/run.py --arm combo --seeds 1,2
 
 ## 運作方式
 
-```
-主張層   結論 C1「組合臂準確率 91.25%」          ← research-cockpit（主張、假設、前提、裁決）
-  │ 數字來自（細到 JSON 欄位）
-執行層   R1  python3 eval/run.py --arm combo     ← cockpit run（命令、commit、程式碼與設定的雜湊、輸出檔）
-  │ 執行時用到
-程式碼層 run.py → infer.py、judge.py、stats.py   ← graphify 的 graph.json，或內建的輕量版程式碼圖
-  │ 屬於
-架構層   「評估流程」                            ← Understand-Anything 的 layers／md² 架構圖／資料夾
-註記：程式碼審查（open-code-review 或內建規則）、UA 的白話摘要與導覽、answer-me-with-html 的證據簡報
-```
+![證據圖](docs/figures/evidence-graph.png)
 
 - **不必另外安裝 graphify 或 open-code-review**：內建輕量版（`cockpit graph`、`cockpit review`），輸出格式與原工具相容；有裝原工具時自動改用。每偵測到一次檔案變更，內建審查就自動看一次改到的行。
 - **判斷靠內容雜湊**：執行記下它用到的每個檔案的雜湊；之後任何一個不一樣，那次執行就過期，引用它的結論變成「待重驗」。改回原樣，雜湊對上就恢復。全部是確定性規則，0 token。
@@ -93,4 +84,4 @@ test/                node:test
 docs/                報告用的截圖、需求文件、實測紀錄
 ```
 
-一步一步的教學見 [docs/TUTORIAL.md](docs/TUTORIAL.md)，作業報告見 [REPORT.md](REPORT.md)（Word 版：[docs/Agent-Cockpit-報告.docx](docs/Agent-Cockpit-報告.docx)）。授權 GPL-3.0。
+一步一步的教學見 [docs/TUTORIAL.md](docs/TUTORIAL.md)，作業報告見 [REPORT.md](REPORT.md)（Word 版：[docs/Agent-Cockpit-報告.docx](docs/Agent-Cockpit-報告.docx)，列印用 PDF：[docs/Agent-Cockpit-報告.pdf](docs/Agent-Cockpit-報告.pdf)）。授權 GPL-3.0。
