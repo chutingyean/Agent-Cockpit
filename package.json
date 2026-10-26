@@ -1,0 +1,22 @@
+{
+  "name": "agent-cockpit",
+  "version": "0.1.0",
+  "description": "研究用的 AI agent 駕駛艙：證據鏈白板 + MCP server，任何 agent 都能接",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "bin": {
+    "cockpit": "bin/cockpit.mjs"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "demo": "node bin/cockpit.mjs demo",
+    "mockup": "node mockup/build.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  }
+}

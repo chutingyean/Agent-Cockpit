@@ -1,0 +1,9 @@
+node_modules/
+.tools/
+.am/
+mockup/.am/
+# 示範研究專案由 `npm run demo` 從 demo/template 產生，本身是另一個 git repo
+demo/research/
+# 資料庫是事件的投影，可以重建；events.jsonl 才是要進 git 的紀錄
+.cockpit/cockpit.db*
+.DS_Store
