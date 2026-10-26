@@ -7,3 +7,4 @@ demo/research/
 # 資料庫是事件的投影，可以重建；events.jsonl 才是要進 git 的紀錄
 .cockpit/cockpit.db*
 .DS_Store
+.claude/

@@ -1,0 +1,238 @@
+{
+  "version": "1.0.0",
+  "kind": "codebase",
+  "project": {
+    "name": "format-following-study",
+    "languages": [
+      "python"
+    ],
+    "frameworks": [
+      "pytorch",
+      "peft"
+    ],
+    "description": "示範研究專案的程式碼（範例資料：欄位照 Understand-Anything 的 KnowledgeGraph schema 手寫，不是真的跑 /understand 產生的）",
+    "analyzedAt": "2026-10-26T09:00:00Z",
+    "gitCommitHash": "3f2a91c"
+  },
+  "nodes": [
+    {
+      "id": "file:eval/run.py",
+      "type": "file",
+      "name": "run.py",
+      "filePath": "eval/run.py",
+      "summary": "評估的總入口：把所有題目跑一遍，交給評分器打分，最後做統計檢定。",
+      "tags": [
+        "評估",
+        "入口"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "用 argparse 讀 --arm、--seeds 這些參數，所以同一支程式能跑不同的實驗設定。"
+    },
+    {
+      "id": "file:eval/infer.py",
+      "type": "file",
+      "name": "infer.py",
+      "filePath": "eval/infer.py",
+      "summary": "載入訓練好的模型權重，對每一題產生回答。",
+      "tags": [
+        "推論"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "torch.no_grad() 會關掉梯度計算，推論比較快，也比較省記憶體。"
+    },
+    {
+      "id": "file:eval/judge.py",
+      "type": "file",
+      "name": "judge.py",
+      "filePath": "eval/judge.py",
+      "summary": "自動評分器：把模型的回答解析成答案，再跟標準答案比對。改它等於改所有分數的尺。",
+      "tags": [
+        "評分",
+        "核心"
+      ],
+      "complexity": "complex",
+      "languageNotes": "parse_answer() 用正規表示式抽出答案；比對規則一改，同一份回答可能得到不同分數。"
+    },
+    {
+      "id": "file:eval/stats.py",
+      "type": "file",
+      "name": "stats.py",
+      "filePath": "eval/stats.py",
+      "summary": "配對檢定與種子帶寬：判斷兩組分數的差距算不算顯著，還是只是運氣。",
+      "tags": [
+        "統計"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "用 scipy.stats 的配對 t 檢定；樣本數太少時，結果不可靠。"
+    },
+    {
+      "id": "file:eval/parse_bench.py",
+      "type": "file",
+      "name": "parse_bench.py",
+      "filePath": "eval/parse_bench.py",
+      "summary": "量測解析器本身要花多少代價，不經過評分器。",
+      "tags": [
+        "基準"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:eval/parser.py",
+      "type": "file",
+      "name": "parser.py",
+      "filePath": "eval/parser.py",
+      "summary": "把模型輸出的結構化文字轉回一個個欄位。",
+      "tags": [
+        "解析"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:train/ablate_templates.py",
+      "type": "file",
+      "name": "ablate_templates.py",
+      "filePath": "train/ablate_templates.py",
+      "summary": "比較用 1 個模板和 5 個模板訓練，看哪一種比較好。",
+      "tags": [
+        "消融"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:train/sft.py",
+      "type": "file",
+      "name": "sft.py",
+      "filePath": "train/sft.py",
+      "summary": "LoRA 微調主程式：在小模型上加一小塊可以訓練的參數。",
+      "tags": [
+        "訓練",
+        "核心"
+      ],
+      "complexity": "complex",
+      "languageNotes": "peft 套件的 LoraConfig 決定加多大的參數（rank）。"
+    },
+    {
+      "id": "file:train/prompt.py",
+      "type": "file",
+      "name": "prompt.py",
+      "filePath": "train/prompt.py",
+      "summary": "把每一題組成訓練用的提示詞。",
+      "tags": [
+        "提示詞"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:eval/run.py",
+      "target": "file:eval/infer.py",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:eval/run.py",
+      "target": "file:eval/judge.py",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:eval/run.py",
+      "target": "file:eval/stats.py",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:eval/parse_bench.py",
+      "target": "file:eval/parser.py",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:train/ablate_templates.py",
+      "target": "file:train/sft.py",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.9
+    },
+    {
+      "source": "file:train/ablate_templates.py",
+      "target": "file:train/prompt.py",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.7
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:eval",
+      "name": "評估流程",
+      "description": "把模型跑一遍、打分數、做統計檢定，報告裡的數字都從這裡出來",
+      "nodeIds": [
+        "file:eval/run.py",
+        "file:eval/infer.py",
+        "file:eval/judge.py",
+        "file:eval/stats.py",
+        "file:eval/parse_bench.py",
+        "file:eval/parser.py"
+      ]
+    },
+    {
+      "id": "layer:train",
+      "name": "訓練流程",
+      "description": "LoRA 微調與提示詞模板",
+      "nodeIds": [
+        "file:train/ablate_templates.py",
+        "file:train/sft.py",
+        "file:train/prompt.py"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "從評估的入口開始",
+      "description": "eval/run.py 是所有實驗分數的起點。每一次 cockpit run 跑的評估都從這裡進來。",
+      "nodeIds": [
+        "file:eval/run.py"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "模型先回答",
+      "description": "infer.py 載入權重，對每一題產生回答。",
+      "nodeIds": [
+        "file:eval/infer.py"
+      ],
+      "languageLesson": "torch.no_grad() 讓推論不記錄梯度，這是評估程式的標準寫法。"
+    },
+    {
+      "order": 3,
+      "title": "評分器決定對錯",
+      "description": "judge.py 是全專案連線最多的地方。它的比對規則一改，所有分數都會跟著變。",
+      "nodeIds": [
+        "file:eval/judge.py"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "統計檢定決定算不算顯著",
+      "description": "stats.py 判斷差距是不是運氣。報告裡的「雙顯著」就是它算的。",
+      "nodeIds": [
+        "file:eval/stats.py"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "模型是怎麼訓練出來的",
+      "description": "sft.py 做 LoRA 微調，prompt.py 組提示詞，ablate_templates.py 比較不同模板。",
+      "nodeIds": [
+        "layer:train"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# combo arm 的訓練設定（run.py 不讀這個檔）
+lr: 0.0002
+rank: 16
+epochs: 3

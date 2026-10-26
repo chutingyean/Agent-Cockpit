@@ -1,0 +1,60 @@
+{"id": "q01", "suite": "default", "fmt": "json", "question": "台灣的首都是哪裡？", "answer": "台北"}
+{"id": "q02", "suite": "default", "fmt": "yaml", "question": "3 加 4 等於多少？", "answer": "7"}
+{"id": "q03", "suite": "default", "fmt": "table", "question": "一週有幾天？", "answer": "7"}
+{"id": "q04", "suite": "default", "fmt": "json", "question": "下列何者是哺乳類？A 鯊魚 B 鯨魚 C 鮭魚", "answer": "B"}
+{"id": "q05", "suite": "default", "fmt": "yaml", "question": "水的化學式是什麼？", "answer": "H2O"}
+{"id": "q06", "suite": "default", "fmt": "table", "question": "12 乘以 3 等於多少？", "answer": "36"}
+{"id": "q07", "suite": "default", "fmt": "json", "question": "日本的首都是哪裡？", "answer": "東京"}
+{"id": "q08", "suite": "default", "fmt": "yaml", "question": "一年有幾個月？", "answer": "12"}
+{"id": "q09", "suite": "default", "fmt": "table", "question": "100 減 58 等於多少？", "answer": "42"}
+{"id": "q10", "suite": "default", "fmt": "json", "question": "紅色加黃色會調出什麼？A 綠 B 橙 C 紫", "answer": "B"}
+{"id": "q11", "suite": "default", "fmt": "yaml", "question": "地球繞著什麼轉？", "answer": "太陽"}
+{"id": "q12", "suite": "default", "fmt": "table", "question": "81 的平方根是多少？", "answer": "9"}
+{"id": "q13", "suite": "default", "fmt": "json", "question": "英文字母共有幾個？", "answer": "26"}
+{"id": "q14", "suite": "default", "fmt": "yaml", "question": "韓國的首都是哪裡？", "answer": "首爾"}
+{"id": "q15", "suite": "default", "fmt": "table", "question": "一打是幾個？", "answer": "12"}
+{"id": "q16", "suite": "default", "fmt": "json", "question": "15 除以 3 等於多少？", "answer": "5"}
+{"id": "q17", "suite": "default", "fmt": "yaml", "question": "水在攝氏幾度結冰？", "answer": "0"}
+{"id": "q18", "suite": "default", "fmt": "table", "question": "下列何者是質數？A 9 B 15 C 13", "answer": "C"}
+{"id": "q19", "suite": "default", "fmt": "json", "question": "法國的首都是哪裡？", "answer": "巴黎"}
+{"id": "q20", "suite": "default", "fmt": "yaml", "question": "2 的 5 次方是多少？", "answer": "32"}
+{"id": "q21", "suite": "default", "fmt": "table", "question": "一小時有幾分鐘？", "answer": "60"}
+{"id": "q22", "suite": "default", "fmt": "json", "question": "七乘以八是多少？", "answer": "56"}
+{"id": "q23", "suite": "default", "fmt": "yaml", "question": "太陽從哪個方向升起？", "answer": "東"}
+{"id": "q24", "suite": "default", "fmt": "table", "question": "下列何者是液體？A 鐵 B 水 C 石頭", "answer": "B"}
+{"id": "q25", "suite": "default", "fmt": "json", "question": "泰國的首都是哪裡？", "answer": "曼谷"}
+{"id": "q26", "suite": "default", "fmt": "yaml", "question": "25 加 17 等於多少？", "answer": "42"}
+{"id": "q27", "suite": "default", "fmt": "table", "question": "三角形有幾個邊？", "answer": "3"}
+{"id": "q28", "suite": "default", "fmt": "json", "question": "一天有幾小時？", "answer": "24"}
+{"id": "q29", "suite": "default", "fmt": "yaml", "question": "英國的首都是哪裡？", "answer": "倫敦"}
+{"id": "q30", "suite": "default", "fmt": "table", "question": "下列何者會飛？A 狗 B 貓 C 鴿子", "answer": "C"}
+{"id": "q31", "suite": "default", "fmt": "json", "question": "9 乘以 9 等於多少？", "answer": "81"}
+{"id": "q32", "suite": "default", "fmt": "yaml", "question": "正方形有幾個角？", "answer": "4"}
+{"id": "q33", "suite": "default", "fmt": "table", "question": "德國的首都是哪裡？", "answer": "柏林"}
+{"id": "q34", "suite": "default", "fmt": "json", "question": "1000 公尺等於幾公里？", "answer": "1"}
+{"id": "q35", "suite": "default", "fmt": "yaml", "question": "哪個季節最冷？A 夏 B 冬 C 秋", "answer": "B"}
+{"id": "q36", "suite": "default", "fmt": "table", "question": "64 除以 8 等於多少？", "answer": "8"}
+{"id": "q37", "suite": "default", "fmt": "json", "question": "義大利的首都是哪裡？", "answer": "羅馬"}
+{"id": "q38", "suite": "default", "fmt": "yaml", "question": "一分鐘有幾秒？", "answer": "60"}
+{"id": "q39", "suite": "default", "fmt": "table", "question": "彩虹有幾種顏色？", "answer": "7"}
+{"id": "q40", "suite": "default", "fmt": "json", "question": "下列何者是蔬菜？A 蘋果 B 菠菜 C 香蕉", "answer": "B"}
+{"id": "q41", "suite": "hard", "fmt": "yaml", "question": "17 乘以 23 等於多少？", "answer": "391"}
+{"id": "q42", "suite": "hard", "fmt": "table", "question": "1 加到 10 的總和是多少？", "answer": "55"}
+{"id": "q43", "suite": "hard", "fmt": "json", "question": "澳洲的首都是哪裡？", "answer": "坎培拉"}
+{"id": "q44", "suite": "hard", "fmt": "yaml", "question": "2 的 10 次方是多少？", "answer": "1024"}
+{"id": "q45", "suite": "hard", "fmt": "table", "question": "下列何者不是質數？A 29 B 31 C 51", "answer": "C"}
+{"id": "q46", "suite": "hard", "fmt": "json", "question": "加拿大的首都是哪裡？", "answer": "渥太華"}
+{"id": "q47", "suite": "hard", "fmt": "yaml", "question": "13 的平方是多少？", "answer": "169"}
+{"id": "q48", "suite": "hard", "fmt": "table", "question": "六邊形內角和是幾度？", "answer": "720"}
+{"id": "q49", "suite": "hard", "fmt": "json", "question": "巴西的首都是哪裡？", "answer": "巴西利亞"}
+{"id": "q50", "suite": "hard", "fmt": "yaml", "question": "12 和 18 的最小公倍數是多少？", "answer": "36"}
+{"id": "q51", "suite": "hard", "fmt": "table", "question": "若 x+5=12，x 是多少？", "answer": "7"}
+{"id": "q52", "suite": "hard", "fmt": "json", "question": "紐西蘭的首都是哪裡？", "answer": "威靈頓"}
+{"id": "q53", "suite": "hard", "fmt": "yaml", "question": "1 到 20 之間有幾個質數？", "answer": "8"}
+{"id": "q54", "suite": "hard", "fmt": "table", "question": "立方體有幾條邊？", "answer": "12"}
+{"id": "q55", "suite": "hard", "fmt": "json", "question": "瑞士的首都是哪裡？", "answer": "伯恩"}
+{"id": "q56", "suite": "hard", "fmt": "yaml", "question": "3 的 4 次方是多少？", "answer": "81"}
+{"id": "q57", "suite": "hard", "fmt": "table", "question": "下列何者不是哺乳類？A 蝙蝠 B 海豚 C 企鵝", "answer": "C"}
+{"id": "q58", "suite": "hard", "fmt": "json", "question": "100 以內最大的質數是多少？", "answer": "97"}
+{"id": "q59", "suite": "hard", "fmt": "yaml", "question": "土耳其的首都是哪裡？", "answer": "安卡拉"}
+{"id": "q60", "suite": "hard", "fmt": "table", "question": "48 和 36 的最大公因數是多少？", "answer": "12"}
