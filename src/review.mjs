@@ -41,6 +41,7 @@ function addedLines(root, rel){
 }
 
 export function reviewFile(root, rel, { all = false } = {}){
+  if (!CODE.test(rel)) return [];   // 設定檔（例如 .mcp.json 裡本來就要寫 node 的絕對路徑）不審
   let src;
   try { src = readFileSync(path.join(root, rel), 'utf8'); } catch { return []; }
   const lines = src.split('\n'), only = all ? null : addedLines(root, rel), out = [];

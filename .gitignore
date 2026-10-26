@@ -9,3 +9,6 @@ demo/research/
 .DS_Store
 .claude/
 demo/live/
+
+# 作業報告只留在本機，不進 repo
+report/

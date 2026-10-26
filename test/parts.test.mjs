@@ -5,7 +5,7 @@ import { rmSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fromGraphify, closure } from '../src/deps.mjs';
 import { buildGraph, affected } from '../src/graph.mjs';
-import { review } from '../src/review.mjs';
+import { review, reviewFile } from '../src/review.mjs';
 import { listFiles } from '../src/repo.mjs';
 import { openStore } from '../src/store.mjs';
 import { validateDiagram } from '../src/diagram.mjs';
@@ -43,6 +43,8 @@ test('內建審查：預設只看改到的行；抓得到評分比對變鬆、�
   assert.ok(rules.includes('train/leak.py:5:unseeded:medium'));
   assert.ok(rules.includes('train/leak.py:3:mutable-default:medium'));
   assert.ok(!f.some(x => x.path === 'eval/judge.py' && x.line !== 10), '沒改到的行不審');
+  writeFileSync(path.join(root, 'tool.json'), '{ "command": "/Users/me/bin/node" }\n');
+  assert.deepEqual(reviewFile(root, 'tool.json'), [], '設定檔不審');
 });
 
 test('偵測到變更就自動審查：發現跟著變更走，寫進自動裁決與結論的疑慮；改回去就消失', () => {

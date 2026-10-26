@@ -1,87 +1,151 @@
-# Agent Cockpit
+<p align="center"><img src="docs/assets/banner.png" alt="Agent Cockpit: every research claim, traceable to the code that produced it" width="100%"></p>
 
-讓 AI agent 做研究時，**每一個結論都能一路追到產生它的程式碼**。所有 agent（Claude Code、Codex、Cursor、Gemini CLI…）透過 MCP 把研究畫到同一張白板上；一個確定性引擎持續檢查整條證據鏈，任何一環被改，相關的卡片立刻變紅。人不必讀程式碼，看白板就知道哪些結論還能信、為什麼。
+<p align="center">
+  <a href="https://github.com/chutingyean/Agent-Cockpit/actions/workflows/test.yml"><img src="https://github.com/chutingyean/Agent-Cockpit/actions/workflows/test.yml/badge.svg" alt="tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue" alt="license: AGPL-3.0-or-later"></a>
+  <img src="https://img.shields.io/badge/node-%E2%89%A522.13-339933" alt="node >= 22.13">
+  <img src="https://img.shields.io/badge/MCP-any%20agent-7c4dcc" alt="MCP: any agent">
+</p>
 
-![白板：三個寫入者、7 個結論全部有效](docs/screenshots/1-board-three-agents.png)
+<p align="center"><b>English</b> · <a href="README.zh-TW.md">繁體中文</a></p>
 
-偷改評分器之後（沒有 agent 回報），用到它的結論全部變成「待重驗」，紅線從 `judge.py` 一路連到結論，駕駛艙自動送出裁決：
+**Agent Cockpit** is a local whiteboard plus an MCP server for AI agents that do research. Any agent that speaks MCP (Claude Code, Codex, Cursor, Gemini CLI, …) draws its work onto the same board: the plan, the tasks, every experiment run, every claim, and the code each run depended on. A deterministic engine keeps checking the whole evidence chain. When any link changes, the cards that depend on it turn red. You can tell which results still hold, and why, without reading the code.
 
-![偷改評分器之後的白板](docs/screenshots/2-board-broken-chain.png)
+<p align="center"><img src="docs/assets/replay.gif" alt="Replaying a real session: two agents complete a study, an unreported change breaks one claim, a human decides, an agent restores it" width="100%"></p>
+<p align="center"><sub>Replay of a real session: Claude Code and Codex complete a small study from an empty repo. An unreported edit breaks one claim, and the cockpit raises a decision and writes a brief. A human picks "restore", and an agent carries it out.</sub></p>
 
-## 快速開始
+## Why
 
-需要 Node.js 22.13 以上（用到內建的 `node:sqlite`）、git、python3（示範專案用）。
+After a few days of research with AI agents, the same things keep going wrong:
+
+- **Claims lose their footing silently.** An agent edits the grader, the data pipeline or a statistics helper, and results that were "verified" no longer hold. Nobody notices.
+- **Changes go unreported.** Files change and no agent says so, or an agent says it changed something it didn't.
+- **Decisions pile up, assumptions harden, loops spin.** Questions meant for a human wait unanswered, untested premises become foundations, and an agent keeps tweaking hyperparameters "one more time".
+- **The code grows faster than you can read it.**
+
+Agent Cockpit turns these into rules a machine can check, and shows the result on one board.
+
+## Features
+
+- **Evidence chains, down to a JSON field.** A claim must cite a value that a recorded run actually wrote. Each run records the hash of its script, of every file the script depends on, and of each function it reaches. If any of those changes, the run goes stale and every claim built on it is flagged for recheck. Revert the change and the hashes match again, so the claims recover.
+- **Works with any MCP agent.** Agent identity comes from the MCP handshake. `cockpit init` writes the config for Claude Code, Cursor, VS Code and Gemini CLI, and prints the command for Codex.
+- **One write gate.** Every write from MCP, the CLI or the board passes through the same validator. Non-compliant writes are rejected with a reason the agent can act on. Rejections are logged too.
+- **Unreported changes get caught.** Real file changes are detected whether or not an agent reports them. Unreported changes block `git commit`, and Claude Code cannot end its turn until it reports them.
+- **Built-in code graph and code review, no extra installs.** A lightweight graphify-style call graph supplies dependency closures, communities, core nodes and impact analysis. A rule-based reviewer looks at the changed lines every time a file changes. Install the real [graphify](https://github.com/Graphify-Labs/graphify) or [open-code-review](https://github.com/alibaba/open-code-review) and they are used automatically.
+- **Human decisions in the loop.** Agents ask through `cockpit_decide` and wait. When a change breaks claims, the cockpit raises a decision itself and writes a one-page evidence brief, laid out by [answer-me-with-html](https://github.com/QingYunA/answer-me-with-html).
+- **Replay.** Everything is an append-only event, so you can scrub or play the board back to any moment. A brief stays available even after the problem is fixed.
+- **Local and deterministic.** The board binds to 127.0.0.1. Every check is a plain rule, with no LLM calls and zero tokens.
+
+## Quick start
+
+Requires Node.js 22.13+ (for the built-in `node:sqlite`), git, and python3 for the demo project.
 
 ```bash
+git clone https://github.com/chutingyean/Agent-Cockpit.git
+cd Agent-Cockpit
 npm install
-npm run demo                                        # 產生示範研究專案，真的跑 6 次實驗、登記 6 個結論
-node bin/cockpit.mjs serve --repo demo/research     # 開白板：http://127.0.0.1:4180
-node bin/cockpit.mjs demo --break                   # 另開終端機：偷改評分器，看白板即時變紅
-node bin/cockpit.mjs demo --restore                 # 改回來，結論恢復有效
-npm test                                            # 33 個測試
+npm run demo                                       # build a demo research repo: 6 real runs, 6 claims
+node bin/cockpit.mjs serve --repo demo/research    # open http://127.0.0.1:4180
 ```
 
-重新產生示範專案（`npm run demo -- --fresh`）前，請先停掉正在跑的 `serve`。
-
-## 用在自己的研究專案
+Then, in a second terminal, break something and watch the board:
 
 ```bash
-node /path/to/agent-cockpit/bin/cockpit.mjs init --repo /path/to/research   # 寫好 MCP 設定、AGENTS.md、Stop hook、pre-commit
-node /path/to/agent-cockpit/bin/cockpit.mjs serve --repo /path/to/research
+node bin/cockpit.mjs demo --break      # quietly loosens the grader's answer matching, unreported
+node bin/cockpit.mjs demo --restore    # put it back: hashes match, claims recover
 ```
 
-`init` 只寫在研究專案資料夾裡：`.mcp.json`（Claude Code）、`.cursor/mcp.json`、`.gemini/settings.json`、`.vscode/mcp.json`、`AGENTS.md`、`CLAUDE.md`、`.claude/settings.json`（Stop hook）、`.git/hooks/pre-commit`。Codex 的設定在家目錄，`init` 只印出指令，不會幫你改。
+<p align="center"><img src="docs/screenshots/2-board-broken-chain.png" alt="The board after the grader was changed: dependent claims turn red, the cockpit raises a decision" width="100%"></p>
 
-跑實驗一律透過 `cockpit run`（或 MCP 的 `cockpit_run`），結論才有證據可以引用：
+## Use it on your own research repo
 
 ```bash
-cockpit run -- python3 eval/run.py --arm combo --seeds 1,2
+cd /path/to/your-research                                  # must be a git repo
+node /path/to/Agent-Cockpit/bin/cockpit.mjs init           # MCP configs, AGENTS.md, Stop hook, pre-commit
+node /path/to/Agent-Cockpit/bin/cockpit.mjs serve          # the board
+node /path/to/Agent-Cockpit/bin/cockpit.mjs run -- python3 train.py --lr 1e-3   # run experiments through the cockpit
 ```
 
-## 運作方式
+`init` only writes inside your repo. Open the repo in your agent and it reads `AGENTS.md` and the MCP config. The [tutorial](docs/tutorial.md) walks through every agent step by step.
 
-![證據圖](docs/figures/evidence-graph.png)
+## How it works
 
-- **不必另外安裝 graphify 或 open-code-review**：內建輕量版（`cockpit graph`、`cockpit review`），輸出格式與原工具相容；有裝原工具時自動改用。每偵測到一次檔案變更，內建審查就自動看一次改到的行。
-- **判斷靠內容雜湊**：執行記下它用到的每個檔案的雜湊；之後任何一個不一樣，那次執行就過期，引用它的結論變成「待重驗」。改回原樣，雜湊對上就恢復。全部是確定性規則，0 token。
-- **事件是唯一的真相**：`.cockpit/events.jsonl`（進 git，就是 AI 協作紀錄）。`cockpit.db` 的 `canvas_*` 表是給其他工具讀的投影。
-- **只有一個寫入咽喉**（`src/gate.mjs`）：MCP、`cockpit run`、白板上的操作都經過它；結論的證據必須是某次執行真的寫出的檔案。
+<p align="center"><img src="docs/figures/evidence-graph.png" alt="The evidence graph: claim → run → code → architecture layer, with review, summaries and briefs as annotations" width="100%"></p>
 
-## MCP 工具
+- **Content hashes, not timestamps.** Staleness is decided by comparing hashes, so reverting a file restores validity exactly.
+- **Function-level precision.** For Python dependencies, a change to a function the run never reaches does not make the run stale. Changes to reachable functions, imports or module-level code always do.
+- **Event sourcing.** `.cockpit/events.jsonl` is the single source of truth, and it doubles as the agents' work log. Commit it. The board is a pure projection (`reduce` → `derive`), which makes replay possible.
 
-| 研究工具 | 用途 |
+<p align="center"><img src="docs/figures/architecture.png" alt="Architecture: agents, CLI and the board all write through one gate into an append-only event store; the engine projects it onto the board" width="100%"></p>
+
+## MCP tools
+
+| Research tools | Purpose |
 |---|---|
-| `cockpit_overview` | 開工先呼叫：要人決定的事、待重驗的結論與原因、未回報的變更 |
-| `cockpit_plan`／`cockpit_stage` | 研究路徑；階段的必要工具沒呼叫過不能結束 |
-| `cockpit_task` | agent 自己建、自己更新任務卡 |
-| `cockpit_run` | 執行實驗並記錄 |
-| `cockpit_claim` | 登記結論（證據必須是執行寫出的檔案與欄位） |
-| `cockpit_hypothesis`／`cockpit_premise` | 假設與還沒站穩的前提 |
-| `cockpit_decide`／`cockpit_decisions` | 請人裁決、取回裁決 |
-| `cockpit_report` | 回報改了哪些檔案 |
-| `cockpit_review` | 程式碼審查（有 ocr 跑 ocr，沒有用內建規則；或 Delegation mode） |
+| `cockpit_overview` | Call first: pending decisions, claims needing recheck and why, unreported changes |
+| `cockpit_plan` / `cockpit_stage` | The research path. A stage cannot close until its required tools have been called |
+| `cockpit_task` | The agent's own task card, updated every round (what, why, next) |
+| `cockpit_run` | Run an experiment and record it |
+| `cockpit_claim` | Register a claim. Evidence must be a file and field written by a recorded run |
+| `cockpit_hypothesis` / `cockpit_premise` | Hypotheses and not-yet-verified premises |
+| `cockpit_decide` / `cockpit_decisions` | Ask a human; read the answers |
+| `cockpit_report` | Report which files changed |
+| `cockpit_review` | Code review: ocr if installed, otherwise built-in rules; or report your own findings |
 
-畫布工具 `canvas_list`、`canvas_read`、`canvas_search`、`canvas_createNode`、`canvas_link`、`canvas_diagram`（md² 架構圖）、`canvas_structure`（程式碼圖與影響範圍）是通用的畫布操作。
+Canvas tools: `canvas_list`, `canvas_read`, `canvas_search`, `canvas_createNode`, `canvas_link`, `canvas_diagram` (architecture diagrams in [md²](https://github.com/jan-bogaerts/md2)'s format) and `canvas_structure` (code graph and impact analysis).
 
-## 專案結構
+## CLI
+
+Run `npm link` once in this repo to get a global `cockpit` command; otherwise use `node bin/cockpit.mjs`.
+
+| Command | Purpose |
+|---|---|
+| `cockpit init` | Write MCP configs, rules files, the Stop hook and the pre-commit hook |
+| `cockpit serve [--port 4180]` | Open the board |
+| `cockpit run -- <command>` | Run and record an experiment |
+| `cockpit graph` | Rebuild the code graph (graphify if installed) |
+| `cockpit review [--all]` | Code review (ocr if installed; changed lines by default) |
+| `cockpit status` / `cockpit check` | Print the cockpit summary / list unreported changes |
+| `cockpit demo [--break\|--restore\|--fresh]` | The demo project |
+
+Every command accepts `--repo <path>`; the default is the current directory.
+
+## Project layout
 
 ```
-bin/cockpit.mjs      命令列：init / serve / mcp / run / check / status / demo
-src/engine.mjs       reduce 與 derive：證據鏈、傳播規則、原地打轉、導覽、簡報草稿
-src/gate.mjs         寫入咽喉
-src/store.mjs        事件庫與畫布投影
+bin/cockpit.mjs      CLI
+src/engine.mjs       reduce and derive: evidence chains, propagation rules, tours, brief drafts
+src/gate.mjs         the single write gate
+src/store.mjs        event store (node:sqlite) and canvas projection
 src/run.mjs          cockpit run
-src/graph.mjs        內建的輕量版 graphify：函式／呼叫圖、社群、核心節點、影響範圍
-src/review.mjs       內建的輕量版 open-code-review：規則審查，預設只看改到的行
+src/graph.mjs        built-in code graph (graphify-compatible output)
+src/review.mjs       built-in rule-based code review
 src/mcp.mjs          MCP server
-src/server.mjs       白板 server（SSE、裁決、簡報）
-src/init.mjs         各 agent 的設定
-web/board.html       白板
-demo/template/       示範研究專案（Python，可真的跑）
-mockup/              v0.4 的靜態白板原型
-vendor/              answer-me-with-html 的 am CLI（MIT）
-test/                node:test
-docs/                報告用的截圖、需求文件、實測紀錄
+src/server.mjs       board server (SSE, decisions, briefs, replay)
+web/board.html       the board (no framework, no build step)
+demo/template/       demo research project (Python, really runs)
+docs/                tutorial, figures, screenshots, a recorded real session
+test/                node:test suite (npm test)
 ```
 
-一步一步的教學見 [docs/TUTORIAL.md](docs/TUTORIAL.md)，作業報告見 [REPORT.md](REPORT.md)（Word 版：[docs/Agent-Cockpit-報告.docx](docs/Agent-Cockpit-報告.docx)，列印用 PDF：[docs/Agent-Cockpit-報告.pdf](docs/Agent-Cockpit-報告.pdf)）。授權 GPL-3.0。
+## Documentation
+
+- [Tutorial](docs/tutorial.md): from the demo to your own project, every agent, replay, and a recorded real session
+- [Recorded session](docs/live-run/): the events, the code the agents wrote, and their output
+
+## Acknowledgements
+
+Agent Cockpit fuses ideas from six projects into one evidence graph:
+[research-cockpit](https://github.com/sanngotall/research-cockpit) (claims, hypotheses, premises, decisions),
+[graphify](https://github.com/Graphify-Labs/graphify) (code graph),
+[open-code-review](https://github.com/alibaba/open-code-review) (code review),
+[Understand-Anything](https://github.com/Egonex-AI/Understand-Anything) (summaries, layers, tours, personas),
+[md²](https://github.com/jan-bogaerts/md2) (architecture diagram format) and
+[answer-me-with-html](https://github.com/QingYunA/answer-me-with-html) (one-page briefs).
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for what is bundled and under which license.
+
+## License
+
+Copyright (C) 2026 chutingyean
+
+Agent Cockpit is free software: you can redistribute it and/or modify it under the terms of the [GNU Affero General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. If you modify it and let others use it over a network, you must offer them the source code of your version. Third-party components keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

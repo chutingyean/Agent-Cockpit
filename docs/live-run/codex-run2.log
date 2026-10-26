@@ -1,7 +1,7 @@
 Reading additional input from stdin...
 OpenAI Codex v0.160.1
 --------
-workdir: /Users/tingyen/Desktop/paper hw2/agent-cockpit/demo/live
+workdir: <agent-cockpit>/demo/live
 model: gpt-6.1-sol
 provider: openai
 approval: never

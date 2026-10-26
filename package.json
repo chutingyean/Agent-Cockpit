@@ -1,9 +1,29 @@
 {
   "name": "agent-cockpit",
   "version": "0.1.0",
-  "description": "研究用的 AI agent 駕駛艙：證據鏈白板 + MCP server，任何 agent 都能接",
+  "description": "An evidence-chain whiteboard and MCP server that keeps AI research agents honest: every claim traces back to the run and the code that produced it.",
   "type": "module",
-  "license": "GPL-3.0",
+  "license": "AGPL-3.0-or-later",
+  "author": "chutingyean",
+  "homepage": "https://github.com/chutingyean/Agent-Cockpit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chutingyean/Agent-Cockpit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chutingyean/Agent-Cockpit/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "research",
+    "reproducibility",
+    "claude-code",
+    "codex",
+    "evidence",
+    "provenance"
+  ],
   "bin": {
     "cockpit": "bin/cockpit.mjs"
   },
@@ -12,8 +32,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "demo": "node bin/cockpit.mjs demo",
-    "mockup": "node mockup/build.mjs"
+    "demo": "node bin/cockpit.mjs demo"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",

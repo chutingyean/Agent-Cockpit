@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agent Cockpit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Agent Cockpit"%3E %3Cdefs%3E %3ClinearGradient id="bg" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0" stop-color="%233b7bff"/%3E%3Cstop offset="1" stop-color="%231f4fc4"/%3E%3C/linearGradient%3E %3C/defs%3E %3Crect width="128" height="128" rx="28" fill="url%28%23bg%29"/%3E %3Ccircle cx="64" cy="64" r="38" fill="none" stroke="%23ffffff" stroke-opacity=".28" stroke-width="10"/%3E %3Cpath d="M64 26 A38 38 0 1 1 27.9 76.2" fill="none" stroke="%235ee0a0" stroke-width="10" stroke-linecap="round"/%3E %3Cpath d="M30.6 46 A38 38 0 0 1 52 27.9" fill="none" stroke="%23ff7a7a" stroke-width="10" stroke-linecap="round"/%3E %3Ccircle cx="64" cy="64" r="15" fill="%23ffffff"/%3E %3Ccircle cx="64" cy="64" r="6" fill="%231f4fc4"/%3E%3C/svg%3E">
 <style>
 :root{
   --bg:#f3f4f6; --grid:#dfe3e8; --surface:#fff; --surface-2:#eef0f4; --border:#dfe3e8; --text:#1b1f24; --muted:#5f6b7a; --faint:#a3acb9;
@@ -439,11 +440,12 @@ function decHTML(d){
 function renderPanel(){
   if (S.sel) return renderDetail();
   const pend = D.decisions.filter(d => d.answer == null), prem = D.premises.filter(p => p.status === 'open');
+  const moms = V.moments.filter(m => !S.until || m.at <= S.until);   // 重播時只列到那一刻為止的
   const seen = Number(store.get(`cockpit:seen:${V.project}`) || 0);
   $('#panel').innerHTML = `<div class="ph">駕駛艙<span style="font-weight:400;font-size:12px;color:var(--muted)">只重新排列既有狀態，每項都帶出處</span><button class="x" data-dock aria-label="收起">✕</button></div>
   <div class="pb">
     <div class="sec"><h3>要你決定 <span class="cnt ${pend.length ? 'hot' : ''}">${pend.length}</span></h3>${D.decisions.length ? [...pend, ...D.decisions.filter(d => d.answer != null)].map(decHTML).join('') : '<p style="font-size:12.5px;color:var(--muted)">沒有</p>'}</div>
-    ${V.moments.length ? `<div class="sec"><h3>簡報紀錄 <span class="cnt">${V.moments.length}</span></h3>${V.moments.map(m => `<div class="li" style="flex-wrap:wrap"><span style="color:var(--muted)">#${m.at} · ${esc(hhmm(m.ts))}</span><span style="flex:1;min-width:180px">${esc(m.question)}</span>
+    ${moms.length ? `<div class="sec"><h3>簡報紀錄 <span class="cnt">${moms.length}</span></h3>${moms.map(m => `<div class="li" style="flex-wrap:wrap"><span style="color:var(--muted)">#${m.at} · ${esc(hhmm(m.ts))}</span><span style="flex:1;min-width:180px">${esc(m.question)}</span>
       <span class="opts" style="margin-top:2px"><button class="opt" data-viewer="${esc(m.id)}" data-at="${m.at}">看簡報</button><button class="opt" data-playfrom="${Math.max(1, m.at - 3)}">▶ 從這裡播放</button></span></div>`).join('')}
       <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">證據鏈斷過的每一次。修好之後簡報不會消失，可以回來看當時發生什麼事。</p></div>` : ''}
     <div class="sec"><h3>還沒站穩 <span class="cnt">${prem.length}</span></h3>${prem.map(p => `<div class="li"><span class="risk ${esc(p.risk)}">${esc(p.risk)}</span><span style="flex:1">${esc(p.text)}</span>
