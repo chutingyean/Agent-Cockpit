@@ -11,7 +11,7 @@ import { openCockpit } from '../src/cockpit.mjs';
 import { createMcpServer } from '../src/mcp.mjs';
 import { createServer } from '../src/server.mjs';
 import { init } from '../src/init.mjs';
-import { tempRepo, withClaim, loosenJudge } from './helpers.mjs';
+import { tempRepo, withClaim, loosenJudge, restoreJudge } from './helpers.mjs';
 
 const BIN = fileURLToPath(new URL('../bin/cockpit.mjs', import.meta.url));
 
@@ -76,6 +76,24 @@ test('網頁 server：只接受本機白板送出的 JSON；人在白板上的�
     const { client, call } = await mcpClient(root, 'claude-code');
     assert.match((await call('cockpit_decisions')).content[0].text, /"answer": "採納"/);
     await client.close();
+  } finally { s.server.close(); }
+});
+
+test('網頁 server：證據鏈斷過的時刻列在簡報紀錄；修好之後，指定事件仍拿得到當時的簡報', async () => {
+  const { root, ck } = withClaim();
+  loosenJudge(root); ck.syncFiles();
+  const broke = ck.store.last();
+  restoreJudge(root); ck.syncFiles();
+  const port = 43000 + Math.floor(Math.random() * 2000), s = createServer(root, { port });
+  await s.listen();
+  try {
+    const base = `http://127.0.0.1:${port}`, state = await (await fetch(`${base}/api/state`)).json();
+    assert.equal(state.D.bad.length, 0);
+    assert.deepEqual(state.moments.map(m => [m.id, m.at]), [['AUTO:eval/judge.py', broke]]);
+    assert.equal((await fetch(`${base}/api/brief/AUTO%3Aeval%2Fjudge.py`)).status, 404, '現在沒有斷鏈');
+    const r = await fetch(`${base}/api/brief/AUTO%3Aeval%2Fjudge.py?until=${broke}`);
+    assert.equal(r.status, 200);
+    assert.match(await r.text(), /個結論要重驗/);
   } finally { s.server.close(); }
 });
 

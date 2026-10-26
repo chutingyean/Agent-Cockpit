@@ -54,18 +54,36 @@ export function createServer(root, { port = 4180 } = {}){
       tours:{ ua:ua?.tour?.length ? { title:'架構導覽', source:'UA 知識圖的 tour', steps:ua.tour } : null,
         chains:Object.fromEntries(D.claims.map(c => [c.id, chainTour(D, c.id)])) },
       timeline:ck.store.events(until).slice(-80).reverse().map(e => ({ id:e.id, ts:e.ts, agent:e.agent, type:e.type, text:describe(e) })),
+      moments:moments(),
     };
   }
 
-  function brief(id){
-    const D = ck.view().D, md = briefMarkdown(D, id);
-    if (!md) return null;
-    const sig = createHash('sha1').update(md).digest('hex');
-    if (briefs.get(id)?.sig !== sig) {
-      const r = renderBrief(ck.root, `brief-${short(id).replace(/[^\w.-]/g, '_')}-${sig.slice(0, 8)}`, md);
-      briefs.set(id, { sig, ...r });
+  // 證據鏈斷過的時刻：之後修好了，簡報也找得回來。只在有檔案變更的事件上檢查；事件只會追加，所以結果依事件編號快取
+  // ponytail: 每個新的 file_changed 要重算一次整段 reduce，事件上萬筆時改成增量 reduce
+  const seenAt = new Map();
+  const chainAt = id => {
+    if (!seenAt.has(id)) seenAt.set(id, id < 1 ? [] : ck.view(id).D.decisions.filter(d => d.chain).map(d => ({ id:d.id, question:d.question, grounds:d.grounds })));
+    return seenAt.get(id);
+  };
+  function moments(){
+    const out = [];
+    for (const e of ck.store.events()) {
+      if (e.type !== 'file_changed') continue;
+      const before = new Set(chainAt(e.id - 1).map(d => d.id));   // 跟前一個事件比：中間的回報、重跑也可能讓斷鏈消失
+      for (const d of chainAt(e.id)) if (!before.has(d.id)) out.push({ ...d, at:e.id, ts:e.ts });
     }
-    return briefs.get(id);
+    return out.reverse();
+  }
+
+  function brief(id, until){
+    const D = ck.view(until).D, md = briefMarkdown(D, id);
+    if (!md) return null;
+    const sig = createHash('sha1').update(md).digest('hex'), key = `${id}@${until ?? 'now'}`;
+    if (briefs.get(key)?.sig !== sig) {
+      const r = renderBrief(ck.root, `brief-${short(id).replace(/[^\w.-]/g, '_')}-${sig.slice(0, 8)}`, md);
+      briefs.set(key, { sig, ...r });
+    }
+    return briefs.get(key);
   }
 
   const send = (res, code, body, type = 'application/json; charset=utf-8') => {
@@ -85,7 +103,7 @@ export function createServer(root, { port = 4180 } = {}){
         if (url.pathname === '/') return send(res, 200, await readFile(BOARD, 'utf8'), 'text/html; charset=utf-8');
         if (url.pathname === '/api/state') { const u = Number(url.searchParams.get('until')); return send(res, 200, state(u > 0 ? u : undefined)); }
         if (url.pathname.startsWith('/api/brief/')) {
-          const b = brief(decodeURIComponent(url.pathname.slice(11)));
+          const u = Number(url.searchParams.get('until')), b = brief(decodeURIComponent(url.pathname.slice(11)), u > 0 ? u : undefined);
           if (!b) return send(res, 404, '目前沒有這份簡報', 'text/plain; charset=utf-8');
           return b.ok ? send(res, 200, b.html, 'text/html; charset=utf-8') : send(res, 500, `簡報產生失敗：${b.message}`, 'text/plain; charset=utf-8');
         }

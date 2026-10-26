@@ -73,6 +73,18 @@ test('重播：投影到改動之前的事件，結論仍是有效', () => {
   assert.equal(ck.view(before).D.claims[0].health, 'valid');
 });
 
+test('重播：檔案已經還原之後，倒回斷鏈那一刻仍看得到待重驗、未回報與自動裁決（事實從事件推出來，不看現在的 git）', () => {
+  const { root, ck } = withClaim();
+  loosenJudge(root); ck.syncFiles();
+  const broke = ck.store.last();
+  restoreJudge(root); ck.syncFiles();
+  assert.equal(claim(ck, 'C1').health, 'valid');
+  const D = ck.view(broke).D;
+  assert.equal(D.claims[0].health, 'recheck');
+  assert.deepEqual(D.unreported.map(c => c.path), ['eval/judge.py']);
+  assert.ok(D.decisions.some(d => d.id === 'AUTO:eval/judge.py'));
+});
+
 test('原地打轉：同一支腳本連續 3 次只改設定、程式沒變 → 自動送出裁決', () => {
   const { root, ck } = withClaim();
   const cfg = path.join(root, 'configs', 'combo.yaml'), run = () => recordRun(ck, 'python3 eval/run.py --arm combo --seeds 1,2', { agent:'test', capture:true });

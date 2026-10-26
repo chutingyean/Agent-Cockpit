@@ -41,7 +41,8 @@ code{font:12.5px var(--mono)}
 .live b{width:8px;height:8px;border-radius:50%;background:var(--faint)}
 .live.on b{background:var(--ok)}
 .replaybar{display:flex;align-items:center;gap:10px;padding:6px 14px;background:var(--warn-soft);border-bottom:1px solid var(--border);font-size:12.5px;color:var(--warn)}
-.replaybar input{flex:1}
+.replaybar{flex-wrap:wrap}.replaybar input{flex:1;min-width:160px}.replaybar select{font:inherit;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);padding:2px 4px}
+.rtext{flex-basis:100%;color:var(--text);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rtext em{color:var(--muted);font-style:normal;margin-left:6px}
 
 .main{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0;grid-row:3}
 .main.nodock{grid-template-columns:minmax(0,1fr) 0}
@@ -215,8 +216,11 @@ code{font:12.5px var(--mono)}
   <button class="btn" id="dockBtn">駕駛艙<span class="cnt" id="dockCnt"></span></button>
 </header>
 <div class="replaybar" id="replaybar" hidden>
-  <span>重播到事件</span><input type="range" id="until" min="1" step="1" aria-label="重播到第幾個事件"><b id="untilLabel"></b>
-  <button class="btn" id="now">▶ 回到現在</button>
+  <button class="btn" id="play" aria-label="播放">▶ 播放</button>
+  <select id="speed" aria-label="播放速度"><option value="1600">慢</option><option value="800" selected>正常</option><option value="300">快</option></select>
+  <input type="range" id="until" min="1" step="1" aria-label="重播到第幾個事件"><b id="untilLabel"></b>
+  <button class="btn" id="now">回到現在</button>
+  <div class="rtext" id="untilText"></div>
 </div>
 <div class="main" id="main">
   <div class="viewport" id="vp">
@@ -268,6 +272,10 @@ async function load(){
   const fresh = prevIds.size ? V.board.nodes.filter(n => !prevIds.has(n.id)) : [];
   fresh.forEach(n => document.querySelector(`.n[data-id="${CSS.escape(n.id)}"]`)?.classList.add('fresh'));
   prevIds = new Set(V.board.nodes.map(n => n.id));
+  // 重播時白板的大小變了（例如簡報框出現）就把整張白板放進畫面，不然播到斷鏈那一刻會看不到簡報
+  const bk = JSON.stringify(V.board.bounds);
+  if (S.until && load.bk && bk !== load.bk) fitAll();
+  load.bk = bk;
 }
 const find = { claim:id => D.claims.find(c => c.id === id), run:id => D.runs.find(r => r.id === id), file:id => D.files.find(f => `file:${f.path}` === id) };
 
@@ -351,16 +359,16 @@ function render(){
 
 // 簡報：抓回 HTML 後用 srcdoc 放進沙盒 iframe（縮圖與放大共用同一份，只在證據鏈變了才重抓）
 const briefs = new Map();
-async function briefHtml(id){
-  const key = `${id}|${D.bad.join(',')}`;
-  if (!briefs.has(key)) briefs.set(key, fetch(`/api/brief/${encodeURIComponent(id)}`).then(r => r.text()));
+async function briefHtml(id, until = S.until){
+  const key = `${id}|${until || 'now'}|${until ? '' : D.bad.join(',')}`;
+  if (!briefs.has(key)) briefs.set(key, fetch(`/api/brief/${encodeURIComponent(id)}${until ? `?until=${until}` : ''}`).then(r => r.text()));
   return briefs.get(key);
 }
 function placeBrief(){
   const f = $('#briefFrame'), n = V.board.nodes.find(x => x.kind === 'html');
   f.hidden = !n;
   if (!n) return;
-  const key = `${n.decision}|${D.bad.join(',')}`;
+  const key = `${n.decision}|${S.until || 'now'}|${D.bad.join(',')}`;
   if (f.dataset.key !== key) { f.dataset.key = key; briefHtml(n.decision).then(html => { if (f.dataset.key === key) f.srcdoc = html; }); }
   const w = n.w - 26, k = w / 1280;
   Object.assign(f.style, { left:(n.x + 13) + 'px', top:(n.y + 62) + 'px', width:'1280px', height:Math.round(468 / k) + 'px', transform:`scale(${k})` });
@@ -397,7 +405,9 @@ function renderHeader(){
   const pick = $('#tourPick');
   pick.innerHTML = `<option value="">▶ 導覽（UA）…</option>${V.tours.ua ? '<option value="ua">架構導覽 · UA 知識圖的 tour</option>' : ''}`
     + D.claims.map(c => `<option value="chain:${esc(c.id)}">${c.health === 'recheck' ? `為什麼 ${esc(c.id)} 要重驗` : `為什麼相信 ${esc(c.id)}`} · 證據鏈</option>`).join('');
-  const u = $('#until'); u.max = V.lastId; if (!S.until) u.value = V.lastId; $('#untilLabel').textContent = S.until ? `#${S.until} / ${V.lastId}` : `#${V.lastId}（現在）`;
+  const u = $('#until'); u.max = V.lastId; u.value = S.until || V.lastId; $('#untilLabel').textContent = S.until ? `#${S.until} / ${V.lastId}` : `#${V.lastId}（現在）`;
+  const cur = V.timeline[0];
+  $('#untilText').innerHTML = S.until && cur ? `${esc(hhmm(cur.ts))}　${esc(cur.text)}<em>${esc(cur.agent)}</em>` : '拖動滑桿，或按「播放」從頭看研究怎麼走到現在';
 }
 
 /* ---------- 導覽：UA 的 tour 與證據鏈產生的 tour 用同一個播放器 ---------- */
@@ -433,6 +443,9 @@ function renderPanel(){
   $('#panel').innerHTML = `<div class="ph">駕駛艙<span style="font-weight:400;font-size:12px;color:var(--muted)">只重新排列既有狀態，每項都帶出處</span><button class="x" data-dock aria-label="收起">✕</button></div>
   <div class="pb">
     <div class="sec"><h3>要你決定 <span class="cnt ${pend.length ? 'hot' : ''}">${pend.length}</span></h3>${D.decisions.length ? [...pend, ...D.decisions.filter(d => d.answer != null)].map(decHTML).join('') : '<p style="font-size:12.5px;color:var(--muted)">沒有</p>'}</div>
+    ${V.moments.length ? `<div class="sec"><h3>簡報紀錄 <span class="cnt">${V.moments.length}</span></h3>${V.moments.map(m => `<div class="li" style="flex-wrap:wrap"><span style="color:var(--muted)">#${m.at} · ${esc(hhmm(m.ts))}</span><span style="flex:1;min-width:180px">${esc(m.question)}</span>
+      <span class="opts" style="margin-top:2px"><button class="opt" data-viewer="${esc(m.id)}" data-at="${m.at}">看簡報</button><button class="opt" data-playfrom="${Math.max(1, m.at - 3)}">▶ 從這裡播放</button></span></div>`).join('')}
+      <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">證據鏈斷過的每一次。修好之後簡報不會消失，可以回來看當時發生什麼事。</p></div>` : ''}
     <div class="sec"><h3>還沒站穩 <span class="cnt">${prem.length}</span></h3>${prem.map(p => `<div class="li"><span class="risk ${esc(p.risk)}">${esc(p.risk)}</span><span style="flex:1">${esc(p.text)}</span>
       <span class="sub ${p.moved.length ? 'bad' : ''}">${p.moved.length ? `依據的 ${esc(p.moved.join('、'))} 剛被改，風險自動升高` : `被當成地基：${esc(p.used)}`}</span>
       <span class="opts" style="margin-top:2px"><button class="opt" data-premise="${esc(p.id)}" data-v="verified" ${S.until ? 'disabled' : ''}>已驗證</button><button class="opt" data-premise="${esc(p.id)}" data-v="rejected" ${S.until ? 'disabled' : ''}>推翻</button></span></div>`).join('') || '<p style="font-size:12.5px;color:var(--muted)">沒有</p>'}</div>
@@ -567,12 +580,26 @@ function select(id){
   if (!S.dock) toggleDock(true);
 }
 function go(id){ if (byId.has(id)) select(id); else render(); flyTo(boundsOf(id), 1); }
-function openViewer(id){ $('#viewer').hidden = false; briefHtml(id).then(html => { $('#viewerFrame').srcdoc = html; }); }
+function openViewer(id, until){ $('#viewer').hidden = false; briefHtml(id, until ?? S.until).then(html => { $('#viewerFrame').srcdoc = html; }); }
+// 播放重播：一次往前一個事件，播完回到現在。從滑桿目前的位置開始；已經在最後就從頭播
+let playT = null;
+function play(on = !playT, from){
+  clearInterval(playT); playT = null;
+  $('#play').textContent = on ? '⏸ 暫停' : '▶ 播放';
+  if (!on) return;
+  $('#replaybar').hidden = false; $('#replay').setAttribute('aria-pressed', true);
+  S.until = from || (!S.until || S.until >= V.lastId ? 1 : S.until);
+  load();
+  playT = setInterval(() => {
+    if (S.until >= V.lastId) { play(false); S.until = null; load(); return; }
+    S.until++; load();
+  }, Number($('#speed').value));
+}
 function pickTour(v){ if (v === 'ua') startTour(V.tours.ua); else if (v.startsWith('chain:')) startTour(V.tours.chains[v.slice(6)]); }
 function toggleDock(on){ S.dock = on ?? !S.dock; $('#main').classList.toggle('nodock', !S.dock); $('#main').classList.toggle('dockopen', S.dock); setTimeout(fitAll, 30); }
 
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-lens],[data-persona],[data-go],[data-decide],[data-comment],[data-premise],[data-tour],[data-tourpick],[data-viewer],[data-closeviewer],[data-back],[data-dock],[data-seen],#replay,#now,#dockBtn');
+  const t = e.target.closest('[data-lens],[data-persona],[data-go],[data-decide],[data-comment],[data-premise],[data-tour],[data-tourpick],[data-viewer],[data-closeviewer],[data-back],[data-dock],[data-seen],[data-playfrom],#replay,#now,#play,#dockBtn');
   if (!t) return;
   const ds = t.dataset;
   if (ds.lens) { S.lens = ds.lens; render(); ds.lens === 'all' ? flyTo(V.board.bounds, 1) : flyTo(boundsOf(ds.lens), 1); }
@@ -593,16 +620,19 @@ document.addEventListener('click', async e => {
     else { S.tour.i += +ds.tour; if (S.tour.i >= S.tour.steps.length) S.tour = null; }
     render(); if (S.tour) flyTo(boundsOf(S.tour.steps[S.tour.i].nodeIds[0]), 1);
   }
-  else if (ds.viewer) openViewer(ds.viewer);
+  else if (ds.viewer) openViewer(ds.viewer, ds.at ? +ds.at : undefined);
   else if ('closeviewer' in ds) $('#viewer').hidden = true;
   else if ('back' in ds) { S.sel = null; render(); }
   else if ('seen' in ds) { store.set(`cockpit:seen:${V.project}`, V.lastId); render(); }
   else if ('dock' in ds || t.id === 'dockBtn') toggleDock();
-  else if (t.id === 'replay') { const on = $('#replaybar').hidden; $('#replaybar').hidden = !on; t.setAttribute('aria-pressed', on); if (!on) { S.until = null; load(); } }
-  else if (t.id === 'now') { S.until = null; $('#replaybar').hidden = true; $('#replay').setAttribute('aria-pressed', false); load(); }
+  else if (t.id === 'replay') { const on = $('#replaybar').hidden; $('#replaybar').hidden = !on; t.setAttribute('aria-pressed', on); if (!on) { play(false); S.until = null; load(); } }
+  else if (t.id === 'now') { play(false); S.until = null; $('#replaybar').hidden = true; $('#replay').setAttribute('aria-pressed', false); load(); }
+  else if (t.id === 'play') play();
+  else if (ds.playfrom) play(true, +ds.playfrom);
 });
 let ut = null;
-$('#until').addEventListener('input', e => { clearTimeout(ut); ut = setTimeout(() => { const v = +e.target.value; S.until = v >= V.lastId ? null : v; load(); }, 120); });
+$('#until').addEventListener('input', e => { play(false); clearTimeout(ut); ut = setTimeout(() => { const v = +e.target.value; S.until = v >= V.lastId ? null : v; load(); }, 120); });
+$('#speed').addEventListener('change', () => { if (playT) play(true, S.until); });
 $('#tourPick').addEventListener('change', e => { const v = e.target.value; e.target.value = ''; if (v) pickTour(v); });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;

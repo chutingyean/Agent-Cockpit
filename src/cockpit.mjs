@@ -4,7 +4,7 @@ import path from 'node:path';
 import { openStore } from './store.mjs';
 import { dirty, hashFile, changedFuncs, diffstat, docSummary, jsonKeyHashes } from './repo.mjs';
 import { depGraph } from './deps.mjs';
-import { reduce, derive } from './engine.mjs';
+import { reduce, derive, replayFacts } from './engine.mjs';
 import { check } from './gate.mjs';
 import { layout } from './layout.mjs';
 import { reviewFile } from './review.mjs';
@@ -53,8 +53,9 @@ export function openCockpit(root){
     return store.append(type, payload, agent);
   }
 
+  // until：重播到第幾個事件。重播時的事實也從事件推出來，否則已經還原的檔案會讓過去的斷鏈看不見
   function view(until){
-    const st = state(until), D = derive(st, facts());
+    const st = state(until), f = facts(), D = derive(st, until === undefined ? f : { ...f, ...replayFacts(st) });
     const board = layout(D, path.basename(root));
     if (until === undefined) store.materialize(board.canvas);
     return { D, board, ua:facts().ua };

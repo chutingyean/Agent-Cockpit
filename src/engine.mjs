@@ -11,7 +11,7 @@ const SYSTEM_AGENTS = new Set(['git', 'human', 'cockpit', 'cli']);
 
 export function reduce(events){
   const st = { stages:[], stageAt:0, tasks:new Map(), runs:new Map(), claims:new Map(), hyps:new Map(), premises:new Map(), decisions:new Map(),
-    notes:new Map(), links:[], moves:new Map(), known:new Map(), symbols:new Map(), changes:new Map(), agents:new Map(), diagram:null, findings:[], tools:[], lastId:0, events };
+    notes:new Map(), links:[], moves:new Map(), known:new Map(), base:new Map(), symbols:new Map(), changes:new Map(), agents:new Map(), diagram:null, findings:[], tools:[], lastId:0, events };
   for (const e of events) {
     st.lastId = e.id;
     if (!SYSTEM_AGENTS.has(e.agent)) {
@@ -30,7 +30,7 @@ export function reduce(events){
       case 'task_upserted': st.tasks.set(e.task.id, { ...st.tasks.get(e.task.id), ...e.task, agent:e.agent, updated:e.ts }); break;
       case 'run_recorded':
         st.runs.set(e.run.id, { ...e.run, agent:e.agent, ts:e.ts, eventId:e.id });
-        for (const [p, h] of Object.entries(e.run.hashes || {})) if (!st.known.has(p)) st.known.set(p, h);
+        for (const [p, h] of Object.entries(e.run.hashes || {})) { if (!st.known.has(p)) st.known.set(p, h); if (!st.base.has(p)) st.base.set(p, h); }
         for (const [p, sy] of Object.entries(e.run.symbols || {})) if (!st.symbols.get(p)) st.symbols.set(p, sy);
         for (const [p, h] of Object.entries(e.run.outputs || {})) {
           st.known.set(p, h);
@@ -68,6 +68,16 @@ export function reduce(events){
     }
   }
   return st;
+}
+
+// 重播用的專案事實，全部從事件推出來（不看現在的 git 與檔案內容）：
+// 當時哪些檔案跟第一次被執行用到時不一樣，以及 JSON 結果檔每個欄位當時的值（最後一次寫它的執行）
+export function replayFacts(st){
+  const dirty = new Set([...st.known].filter(([p, h]) => h !== null && st.base.get(p) !== h).map(([p]) => p));
+  const keys = new Map();
+  for (const r of [...st.runs.values()].sort((a, b) => a.eventId - b.eventId))
+    for (const [p, k] of Object.entries(r.outputKeys || {})) keys.set(p, { ...keys.get(p), ...k });
+  return { dirty, keysNow:p => keys.get(p) || null };
 }
 
 // 依賴檔改了，但改到的全是這次執行碰不到的最外層函式（模組層程式碼沒變）→ 回傳那些函式；否則 null（算過期）

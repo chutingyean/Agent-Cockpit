@@ -18,7 +18,7 @@ npm run demo                                        # 產生示範研究專案�
 node bin/cockpit.mjs serve --repo demo/research     # 開白板：http://127.0.0.1:4180
 node bin/cockpit.mjs demo --break                   # 另開終端機：偷改評分器，看白板即時變紅
 node bin/cockpit.mjs demo --restore                 # 改回來，結論恢復有效
-npm test                                            # 31 個測試
+npm test                                            # 33 個測試
 ```
 
 重新產生示範專案（`npm run demo -- --fresh`）前，請先停掉正在跑的 `serve`。
