@@ -1,5 +1,6 @@
 {
-  "name": "agent-cockpit",
+  "name": "@chutingyean/agent-cockpit",
+  "mcpName": "io.github.chutingyean/agent-cockpit",
   "version": "0.1.0",
   "description": "An evidence-chain whiteboard and MCP server that keeps AI research agents honest: every claim traces back to the run and the code that produced it.",
   "type": "module",
@@ -37,5 +38,20 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
     "zod": "^4.6.7"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "web/",
+    "vendor/",
+    "demo/template/",
+    "skills/",
+    "LICENSE",
+    "README.md",
+    "README.zh-TW.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

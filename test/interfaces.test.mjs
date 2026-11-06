@@ -10,7 +10,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { openCockpit } from '../src/cockpit.mjs';
 import { createMcpServer } from '../src/mcp.mjs';
 import { createServer } from '../src/server.mjs';
-import { init } from '../src/init.mjs';
+import { init, launcher, PKG } from '../src/init.mjs';
 import { recordRun } from '../src/run.mjs';
 import { tempRepo, withClaim, loosenJudge, restoreJudge } from './helpers.mjs';
 
@@ -124,6 +124,9 @@ test('cockpit init：寫好四種 agent 的 MCP 設定、規則檔、Stop hook�
   init(root);   // 再跑一次不會重複寫入
   assert.equal(readFileSync(path.join(root, 'AGENTS.md'), 'utf8').split('agent-cockpit:start').length, 2);
   assert.equal(openCockpit(root).view().D.unreported.length, 0);
+  // 從 npx 的暫存資料夾執行時改用 npx 指令（那個路徑之後可能被清掉）；git clone 或全域安裝用絕對路徑
+  assert.deepEqual(launcher(path.join('/home/u/.npm/_npx/ab12/node_modules', PKG, 'bin/cockpit.mjs'), '/usr/bin/node'), ['npx', ['-y', PKG]]);
+  assert.deepEqual(launcher('/usr/lib/node_modules/@chutingyean/agent-cockpit/bin/cockpit.mjs', '/usr/bin/node'), ['/usr/bin/node', ['/usr/lib/node_modules/@chutingyean/agent-cockpit/bin/cockpit.mjs']]);
 });
 
 test('拖過的卡位置保留：白板送出 node_moved 之後，新事件重新排版、重開駕駛艙、畫布投影都維持原位；重播到拖之前是自動排版的位置', async () => {

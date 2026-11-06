@@ -1,0 +1,15 @@
+{
+  "name": "agent-cockpit",
+  "description": "Agent Cockpit for Claude Code",
+  "owner": {
+    "name": "chutingyean",
+    "url": "https://github.com/chutingyean"
+  },
+  "plugins": [
+    {
+      "name": "agent-cockpit",
+      "source": "./",
+      "description": "Work under Agent Cockpit: an evidence-chain whiteboard and MCP server that keeps AI research agents honest."
+    }
+  ]
+}

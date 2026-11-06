@@ -1,0 +1,27 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.chutingyean/agent-cockpit",
+  "title": "Agent Cockpit",
+  "description": "Evidence-chain whiteboard for AI research agents: every claim traces back to its run and code.",
+  "repository": {
+    "url": "https://github.com/chutingyean/Agent-Cockpit",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@chutingyean/agent-cockpit",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ]
+    }
+  ]
+}

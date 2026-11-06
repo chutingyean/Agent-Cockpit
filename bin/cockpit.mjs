@@ -97,16 +97,26 @@ function check(hook){
   process.exitCode = D.unreported.length ? 1 : 0;
 }
 
+// 示範專案放哪：有給 --repo 就放那裡；從 git clone 執行放 demo/research；從 npm 安裝的就放在目前資料夾的 agent-cockpit-demo
+function demoTarget(){
+  if (opts.includes('--repo')) return repo;
+  return existsSync(path.join(HERE, '..', '.git')) ? path.join(HERE, '..', 'demo', 'research') : path.resolve('agent-cockpit-demo');
+}
+
 function demo(){
-  const target = path.join(HERE, '..', 'demo', 'research'), judge = path.join(target, 'eval', 'judge.py');
+  const target = demoTarget(), judge = path.join(target, 'eval', 'judge.py'), rel = path.relative(process.cwd(), target) || '.';
   if (flag('break') || flag('restore')) {
     const src = readFileSync(judge, 'utf8'), [from, to] = flag('break') ? [JUDGE_STRICT, JUDGE_LOOSE] : [JUDGE_LOOSE, JUDGE_STRICT];
     if (!src.includes(from)) return console.log(flag('break') ? '評分器已經是寬鬆版了' : '評分器已經是原本的嚴格版');
     writeFileSync(judge, src.replace(from, to));
     return console.log(flag('break') ? '已偷改 eval/judge.py（寬鬆比對、沒有回報）。看白板：4 個結論會變待重驗。' : '已把 eval/judge.py 改回嚴格比對。結論會恢復有效。');
   }
-  if (existsSync(target) && !flag('fresh')) return console.log(`示範專案已存在：${target}\n重新產生請加 --fresh；開白板：node bin/cockpit.mjs serve --repo demo/research`);
-  if (existsSync(target)) execFileSync('rm', ['-rf', target]);
+  if (existsSync(target) && !flag('fresh')) return console.log(`示範專案已存在：${target}\n重新產生請加 --fresh；開白板：cockpit serve --repo ${rel}`);
+  if (existsSync(target)) {
+    // 只刪真的是示範專案的資料夾，避免 --repo 指錯地方時把別的東西刪掉
+    if (!existsSync(judge) || !existsSync(path.join(target, '.cockpit'))) throw new Error(`${target} 不是示範專案，不會刪除它`);
+    execFileSync('rm', ['-rf', target]);
+  }
   cpSync(path.join(HERE, '..', 'demo', 'template'), target, { recursive:true });
   const g = (...a) => execFileSync('git', a, { cwd:target, stdio:'ignore' });
   g('init', '-q', '-b', 'main'); g('add', '-A'); g('-c', 'user.name=demo', '-c', 'user.email=demo@example.com', 'commit', '-qm', '研究專案初始版本');
@@ -114,8 +124,8 @@ function demo(){
   g('add', '-A'); g('-c', 'user.name=demo', '-c', 'user.email=demo@example.com', 'commit', '-qm', '加入 Agent Cockpit 設定');   // 也順便走過一次 pre-commit hook
   seedDemo(openCockpit(target));
   console.log(`✓ 示範研究專案：${target}
-開白板：node bin/cockpit.mjs serve --repo demo/research
-偷改評分器：node bin/cockpit.mjs demo --break    改回來：node bin/cockpit.mjs demo --restore`);
+開白板：cockpit serve --repo ${rel}
+偷改評分器：cockpit demo --break --repo ${rel}    改回來：cockpit demo --restore --repo ${rel}`);
 }
 
 main().catch(e => { console.error(e.message); process.exit(1); });

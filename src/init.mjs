@@ -8,17 +8,24 @@ import { git } from './repo.mjs';
 import { RULES } from './mcp.mjs';
 
 const BIN = fileURLToPath(new URL('../bin/cockpit.mjs', import.meta.url));
+export const PKG = '@chutingyean/agent-cockpit';
 const START = '<!-- agent-cockpit:start -->', END = '<!-- agent-cockpit:end -->';
 
 const readJson = f => { try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return {}; } };
 const writeJson = (f, v) => { mkdirSync(path.dirname(f), { recursive:true }); writeFileSync(f, JSON.stringify(v, null, 2) + '\n'); };
 const q = s => `"${s.replace(/"/g, '\\"')}"`;
 
+// 設定檔裡怎麼啟動 cockpit：git clone 或全域安裝用絕對路徑；從 npx 的暫存資料夾執行時，那個路徑之後可能被清掉，改寫成 npx 指令
+export function launcher(bin = BIN, node = process.execPath){
+  return bin.split(path.sep).includes('_npx') ? ['npx', ['-y', PKG]] : [node, [bin]];
+}
+
 export function init(root){
   root = path.resolve(root);
   if (!git(root, 'rev-parse', '--git-dir').trim()) throw new Error(`${root} 不是 git repo，請先 git init`);
   openStore(root).close();
-  const node = process.execPath, args = [BIN, 'mcp', '--repo', root], server = { command:node, args };
+  const [cmd, pre] = launcher(), server = { command:cmd, args:[...pre, 'mcp', '--repo', root] };
+  const shell = [cmd, ...pre].map(q).join(' ');
   const written = [];
   const merge = (rel, fn) => { const f = path.join(root, rel), v = readJson(f); fn(v); writeJson(f, v); written.push(rel); };
 
@@ -32,13 +39,12 @@ export function init(root){
   });
   // Claude Code 的 Stop hook：有沒回報的變更就擋住它結束回合
   merge('.claude/settings.json', v => {
-    const cmd = `${q(node)} ${q(BIN)} check --hook claude --repo ${q(root)}`;
     const stop = (v.hooks?.Stop || []).filter(h => !JSON.stringify(h).includes('agent-cockpit') && !JSON.stringify(h).includes('cockpit.mjs'));
-    v.hooks = { ...v.hooks, Stop:[...stop, { hooks:[{ type:'command', command:cmd }] }] };
+    v.hooks = { ...v.hooks, Stop:[...stop, { hooks:[{ type:'command', command:`${shell} check --hook claude --repo ${q(root)}` }] }] };
   });
 
   // 規則檔：AGENTS.md 是 Codex、Cursor、Copilot、Gemini 共通的；CLAUDE.md 用 @ 匯入它
-  const block = `${START}\n## Agent Cockpit\n\n${RULES}\n\n終端機跑實驗：\`${node} ${BIN} run -- <命令>\`\n白板：\`${node} ${BIN} serve --repo ${root}\`\n${END}`;
+  const block = `${START}\n## Agent Cockpit\n\n${RULES}\n\n終端機跑實驗：\`${shell} run -- <命令>\`\n白板：\`${shell} serve --repo ${root}\`\n${END}`;
   const agents = path.join(root, 'AGENTS.md'), old = existsSync(agents) ? readFileSync(agents, 'utf8') : '';
   writeFileSync(agents, old.includes(START) ? old.replace(new RegExp(`${START}[\\s\\S]*?${END}`), () => block) : `${old}${old ? '\n\n' : ''}${block}\n`);
   written.push('AGENTS.md');
@@ -48,9 +54,9 @@ export function init(root){
   // git pre-commit：有沒回報的變更就擋下 commit（跟用哪個 agent 無關）
   const hook = path.join(root, git(root, 'rev-parse', '--git-path', 'hooks').trim(), 'pre-commit');
   mkdirSync(path.dirname(hook), { recursive:true });
-  const line = `${q(node)} ${q(BIN)} check --hook git --repo "$(git rev-parse --show-toplevel)" || exit 1`;
+  const line = `${shell} check --hook git --repo "$(git rev-parse --show-toplevel)" || exit 1`;
   const hOld = existsSync(hook) ? readFileSync(hook, 'utf8') : '#!/bin/sh\n';
-  if (!hOld.includes('cockpit.mjs')) writeFileSync(hook, `${hOld.trimEnd()}\n# agent-cockpit\n${line}\n`);
+  if (!hOld.includes('# agent-cockpit')) writeFileSync(hook, `${hOld.trimEnd()}\n# agent-cockpit\n${line}\n`);
   chmodSync(hook, 0o755);
   written.push('.git/hooks/pre-commit');
 
@@ -65,7 +71,8 @@ export function init(root){
   ck.close();
 
   // Codex 的 MCP 設定在家目錄；不想改全域設定，可以每次用 -c 臨時指定。headless（codex exec）要放行 MCP 工具才能呼叫
-  return { root, written, codex:`codex mcp add cockpit -- ${q(node)} ${q(BIN)} mcp --repo ${q(root)}
+  const tomlArgs = server.args.map(a => JSON.stringify(a)).join(',');
+  return { root, written, codex:`codex mcp add cockpit -- ${shell} mcp --repo ${q(root)}
   （codex exec 要能呼叫 cockpit 的工具，請在 ~/.codex/config.toml 的 [mcp_servers.cockpit] 加上 default_tools_approval_mode = "approve"；
-   或不改全域設定，每次執行加：-c 'mcp_servers.cockpit.command="${node}"' -c 'mcp_servers.cockpit.args=["${BIN}","mcp","--repo","${root}"]' -c 'mcp_servers.cockpit.default_tools_approval_mode="approve"'）` };
+   或不改全域設定，每次執行加：-c 'mcp_servers.cockpit.command="${cmd}"' -c 'mcp_servers.cockpit.args=[${tomlArgs}]' -c 'mcp_servers.cockpit.default_tools_approval_mode="approve"'）` };
 }

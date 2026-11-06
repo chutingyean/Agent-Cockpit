@@ -1,0 +1,21 @@
+{
+  "name": "agent-cockpit",
+  "displayName": "Agent Cockpit",
+  "version": "0.1.0",
+  "description": "Work under Agent Cockpit: an evidence-chain whiteboard and MCP server that keeps AI research agents honest.",
+  "author": {
+    "name": "chutingyean",
+    "url": "https://github.com/chutingyean"
+  },
+  "homepage": "https://github.com/chutingyean/Agent-Cockpit",
+  "repository": "https://github.com/chutingyean/Agent-Cockpit",
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "research",
+    "reproducibility",
+    "mcp",
+    "evidence",
+    "provenance",
+    "experiments"
+  ]
+}

@@ -59,14 +59,27 @@ node bin/cockpit.mjs demo --restore    # 改回來：雜湊對上，結論恢復
 
 ## 用在自己的研究專案
 
+不需要 clone：
+
 ```bash
-cd /path/to/your-research                                  # 必須是 git repo
-node /path/to/Agent-Cockpit/bin/cockpit.mjs init           # MCP 設定、AGENTS.md、Stop hook、pre-commit
-node /path/to/Agent-Cockpit/bin/cockpit.mjs serve          # 白板
-node /path/to/Agent-Cockpit/bin/cockpit.mjs run -- python3 train.py --lr 1e-3   # 實驗一律透過 cockpit 跑
+cd /path/to/your-research                                   # 必須是 git repo
+npx -y @chutingyean/agent-cockpit init                      # MCP 設定、AGENTS.md、Stop hook、pre-commit
+npx -y @chutingyean/agent-cockpit serve                     # 白板
+npx -y @chutingyean/agent-cockpit run -- python3 train.py   # 實驗一律透過 cockpit 跑
 ```
 
+想要固定的 `cockpit` 指令：`npm install -g @chutingyean/agent-cockpit`。
+
 `init` 只會寫在你的專案資料夾裡。用 agent 打開專案，它就會讀到 `AGENTS.md` 和 MCP 設定。各家 agent 的接法見[教學](docs/tutorial.zh-TW.md)。
+
+**Claude Code plugin**：加上一個技能，教 Claude 什麼時候、怎麼用 Agent Cockpit（包括怎麼設定）：
+
+```bash
+claude plugin marketplace add chutingyean/Agent-Cockpit
+claude plugin install agent-cockpit@agent-cockpit
+```
+
+同一份技能在 [`skills/agent-cockpit/SKILL.md`](skills/agent-cockpit/SKILL.md)，其他會讀 `SKILL.md` 的 agent 也能用。MCP server 也登記在 [MCP Registry](https://registry.modelcontextprotocol.io)，名稱是 `io.github.chutingyean/agent-cockpit`。
 
 ## 運作方式
 
@@ -96,7 +109,7 @@ node /path/to/Agent-Cockpit/bin/cockpit.mjs run -- python3 train.py --lr 1e-3   
 
 ## 命令列
 
-在這個 repo 執行一次 `npm link` 就有全域的 `cockpit` 指令；否則用 `node bin/cockpit.mjs`。
+`npm install -g @chutingyean/agent-cockpit` 之後就有全域的 `cockpit` 指令；否則用 `npx -y @chutingyean/agent-cockpit <指令>`，或在 clone 下來的資料夾用 `node bin/cockpit.mjs`。
 
 | 指令 | 用途 |
 |---|---|
@@ -124,6 +137,9 @@ src/mcp.mjs          MCP server
 src/server.mjs       白板 server（SSE、裁決、簡報、重播）
 web/board.html       白板（不用框架、不用打包）
 demo/template/       示範研究專案（Python，可真的跑）
+skills/              教 agent 在 Agent Cockpit 底下工作的 SKILL.md
+.claude-plugin/      Claude Code plugin 與 marketplace 設定
+server.json          MCP Registry 的登記資料
 docs/                教學、圖、截圖、一次真實工作過程的紀錄
 test/                node:test（npm test）
 ```

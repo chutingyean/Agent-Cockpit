@@ -27,20 +27,18 @@
 不需要另外安裝 graphify 或 open-code-review：Agent Cockpit 內建了它們的輕量版，有裝真的工具時會自動改用。
 
 ```bash
-git clone https://github.com/chutingyean/Agent-Cockpit.git
-cd Agent-Cockpit
-npm install
-npm test        # 約 4 秒
-npm link        # 選用：之後在任何地方都能直接打 cockpit
+npm install -g @chutingyean/agent-cockpit     # 之後就有 cockpit 指令
 ```
 
-以下都寫 `cockpit`；沒有 `npm link` 的話，改成 `node /path/to/Agent-Cockpit/bin/cockpit.mjs`。
+也可以不安裝，直接用 `npx -y @chutingyean/agent-cockpit <指令>`。要修改 Agent Cockpit 本身，請 clone repo，執行 `npm install` 與 `npm test`（約 4 秒），再用 `node bin/cockpit.mjs`。
+
+（在 clone 下來的資料夾裡，`cockpit demo` 會把示範專案建在 `demo/research`，而不是 `./agent-cockpit-demo`。）
 
 ## 2. 五分鐘看懂白板
 
 ```bash
-npm run demo                              # 產生 demo/research：真的跑 6 次實驗、登記 6 個結論
-cockpit serve --repo demo/research        # 打開 http://127.0.0.1:4180
+cockpit demo                                  # 產生 ./agent-cockpit-demo：真的跑 6 次實驗、登記 6 個結論
+cockpit serve --repo agent-cockpit-demo       # 打開 http://127.0.0.1:4180
 ```
 
 白板從左到右讀，就是一條證據鏈：
@@ -63,7 +61,7 @@ cockpit serve --repo demo/research        # 打開 http://127.0.0.1:4180
 另開一個終端機：
 
 ```bash
-cockpit demo --break --repo demo/research      # 偷偷把評分器的比對改鬆，沒有任何 agent 回報
+cockpit demo --break --repo agent-cockpit-demo     # 偷偷把評分器的比對改鬆，沒有任何 agent 回報
 ```
 
 大約 1.5 秒內白板會變成這樣：
@@ -75,10 +73,10 @@ cockpit demo --break --repo demo/research      # 偷偷把評分器的比對改�
 5. 駕駛艙送出一個自動裁決：「judge.py 被改了，沒有 agent 回報；4 個結論的證據鏈失效。還原，還是接受並重跑？」簡報把這件事排成一頁。
 
 ```bash
-cockpit demo --restore --repo demo/research    # 改回來：雜湊對上，所有結論恢復有效
+cockpit demo --restore --repo agent-cockpit-demo   # 改回來：雜湊對上，所有結論恢復有效
 ```
 
-> 重新產生示範專案（`npm run demo -- --fresh`）前，先停掉正在跑的 `serve`。
+> 重新產生示範專案（`cockpit demo --fresh`）前，先停掉正在跑的 `serve`。
 
 ## 3. 接到自己的研究專案
 
@@ -133,6 +131,13 @@ cockpit run -- python3 experiments/train.py --lr 0.001
 
 在研究專案資料夾開 Claude Code，它會讀到 `.mcp.json` 與 `CLAUDE.md`，第一次會問你要不要啟用 `cockpit` 這個 MCP server。
 
+也可以裝 plugin，多一個教 Claude 在 Agent Cockpit 底下工作的技能：
+
+```bash
+claude plugin marketplace add chutingyean/Agent-Cockpit
+claude plugin install agent-cockpit@agent-cockpit
+```
+
 不想互動、要用腳本跑（headless）：
 
 ```bash
@@ -146,15 +151,15 @@ claude -p "照 AGENTS.md 的規範工作。任務：……" \
 ### 4.2 Codex
 
 ```bash
-codex mcp add cockpit -- node /path/to/Agent-Cockpit/bin/cockpit.mjs mcp --repo "$PWD"
+codex mcp add cockpit -- npx -y @chutingyean/agent-cockpit mcp --repo "$PWD"
 ```
 
 `codex exec`（headless）預設不允許呼叫 MCP 工具。不想改全域設定，可以每次用 `-c` 臨時指定：
 
 ```bash
 codex exec \
-  -c 'mcp_servers.cockpit.command="node"' \
-  -c "mcp_servers.cockpit.args=[\"/path/to/Agent-Cockpit/bin/cockpit.mjs\",\"mcp\",\"--repo\",\"$PWD\"]" \
+  -c 'mcp_servers.cockpit.command="npx"' \
+  -c "mcp_servers.cockpit.args=[\"-y\",\"@chutingyean/agent-cockpit\",\"mcp\",\"--repo\",\"$PWD\"]" \
   -c 'mcp_servers.cockpit.default_tools_approval_mode="approve"' \
   --sandbox workspace-write "照 AGENTS.md 的規範工作。任務：……"
 ```

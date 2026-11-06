@@ -59,14 +59,27 @@ node bin/cockpit.mjs demo --restore    # put it back: hashes match, claims recov
 
 ## Use it on your own research repo
 
+No clone needed:
+
 ```bash
-cd /path/to/your-research                                  # must be a git repo
-node /path/to/Agent-Cockpit/bin/cockpit.mjs init           # MCP configs, AGENTS.md, Stop hook, pre-commit
-node /path/to/Agent-Cockpit/bin/cockpit.mjs serve          # the board
-node /path/to/Agent-Cockpit/bin/cockpit.mjs run -- python3 train.py --lr 1e-3   # run experiments through the cockpit
+cd /path/to/your-research                                   # must be a git repo
+npx -y @chutingyean/agent-cockpit init                      # MCP configs, AGENTS.md, Stop hook, pre-commit
+npx -y @chutingyean/agent-cockpit serve                     # the board
+npx -y @chutingyean/agent-cockpit run -- python3 train.py   # run experiments through the cockpit
 ```
 
+Prefer a permanent `cockpit` command? `npm install -g @chutingyean/agent-cockpit`.
+
 `init` only writes inside your repo. Open the repo in your agent and it reads `AGENTS.md` and the MCP config. The [tutorial](docs/tutorial.md) walks through every agent step by step.
+
+**Claude Code plugin.** Adds a skill that teaches Claude when and how to use Agent Cockpit, including how to set it up:
+
+```bash
+claude plugin marketplace add chutingyean/Agent-Cockpit
+claude plugin install agent-cockpit@agent-cockpit
+```
+
+The same skill lives in [`skills/agent-cockpit/SKILL.md`](skills/agent-cockpit/SKILL.md) for other agents that read `SKILL.md` files. The MCP server is also listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.chutingyean/agent-cockpit`.
 
 ## How it works
 
@@ -96,7 +109,7 @@ Canvas tools: `canvas_list`, `canvas_read`, `canvas_search`, `canvas_createNode`
 
 ## CLI
 
-Run `npm link` once in this repo to get a global `cockpit` command; otherwise use `node bin/cockpit.mjs`.
+`npm install -g @chutingyean/agent-cockpit` gives you a global `cockpit` command. Otherwise use `npx -y @chutingyean/agent-cockpit <command>`, or `node bin/cockpit.mjs` from a clone.
 
 | Command | Purpose |
 |---|---|
@@ -124,6 +137,9 @@ src/mcp.mjs          MCP server
 src/server.mjs       board server (SSE, decisions, briefs, replay)
 web/board.html       the board (no framework, no build step)
 demo/template/       demo research project (Python, really runs)
+skills/              SKILL.md that teaches agents to work under Agent Cockpit
+.claude-plugin/      Claude Code plugin and marketplace manifests
+server.json          MCP Registry metadata
 docs/                tutorial, figures, screenshots, a recorded real session
 test/                node:test suite (npm test)
 ```

@@ -27,20 +27,18 @@ This tutorial starts with the demo project so you can learn to read the board, t
 You do not need graphify or open-code-review: Agent Cockpit ships lightweight built-in versions and switches to the real tools when they are installed.
 
 ```bash
-git clone https://github.com/chutingyean/Agent-Cockpit.git
-cd Agent-Cockpit
-npm install
-npm test        # about 4 seconds
-npm link        # optional: makes the `cockpit` command available everywhere
+npm install -g @chutingyean/agent-cockpit     # gives you the `cockpit` command
 ```
 
-The rest of this tutorial writes `cockpit`. Without `npm link`, use `node /path/to/Agent-Cockpit/bin/cockpit.mjs` instead.
+Or run any command without installing: `npx -y @chutingyean/agent-cockpit <command>`. To work on Agent Cockpit itself, clone the repo, run `npm install` and `npm test` (about 4 seconds), and use `node bin/cockpit.mjs`.
+
+(In a clone, `cockpit demo` builds the demo project in `demo/research` instead of `./agent-cockpit-demo`.)
 
 ## 2. A five-minute tour
 
 ```bash
-npm run demo                              # builds demo/research: 6 real experiment runs, 6 claims
-cockpit serve --repo demo/research        # open http://127.0.0.1:4180
+cockpit demo                                  # builds ./agent-cockpit-demo: 6 real experiment runs, 6 claims
+cockpit serve --repo agent-cockpit-demo       # open http://127.0.0.1:4180
 ```
 
 Read the board from left to right; together the regions form one evidence chain:
@@ -63,7 +61,7 @@ The three reader modes at the top change how much detail cards show: **Overview*
 In a second terminal:
 
 ```bash
-cockpit demo --break --repo demo/research      # quietly loosens the grader's answer matching; no agent reports it
+cockpit demo --break --repo agent-cockpit-demo     # quietly loosens the grader's answer matching; no agent reports it
 ```
 
 Within about 1.5 seconds the board shows:
@@ -75,10 +73,10 @@ Within about 1.5 seconds the board shows:
 5. The cockpit raises a decision: "judge.py changed and nobody reported it; 4 claims lost their evidence. Restore it, or accept the change and re-run?" The brief lays this out on one page.
 
 ```bash
-cockpit demo --restore --repo demo/research    # put it back: hashes match, every claim recovers
+cockpit demo --restore --repo agent-cockpit-demo   # put it back: hashes match, every claim recovers
 ```
 
-> Stop `serve` before regenerating the demo with `npm run demo -- --fresh`.
+> Stop `serve` before regenerating the demo with `cockpit demo --fresh`.
 
 ## 3. Your own research repo
 
@@ -133,6 +131,13 @@ If anything the run used later changes, the run becomes **stale** and every clai
 
 Open Claude Code in your research repo. It picks up `.mcp.json` and `CLAUDE.md` and asks once whether to enable the `cockpit` MCP server.
 
+Optionally install the plugin, which adds a skill that teaches Claude how to work under Agent Cockpit:
+
+```bash
+claude plugin marketplace add chutingyean/Agent-Cockpit
+claude plugin install agent-cockpit@agent-cockpit
+```
+
 Headless, for scripts:
 
 ```bash
@@ -146,15 +151,15 @@ Leaving out Bash is deliberate: the agent can only run code through `cockpit_run
 ### 4.2 Codex
 
 ```bash
-codex mcp add cockpit -- node /path/to/Agent-Cockpit/bin/cockpit.mjs mcp --repo "$PWD"
+codex mcp add cockpit -- npx -y @chutingyean/agent-cockpit mcp --repo "$PWD"
 ```
 
 `codex exec` (headless) does not allow MCP tool calls by default. Without touching your global config, pass the server on the command line:
 
 ```bash
 codex exec \
-  -c 'mcp_servers.cockpit.command="node"' \
-  -c "mcp_servers.cockpit.args=[\"/path/to/Agent-Cockpit/bin/cockpit.mjs\",\"mcp\",\"--repo\",\"$PWD\"]" \
+  -c 'mcp_servers.cockpit.command="npx"' \
+  -c "mcp_servers.cockpit.args=[\"-y\",\"@chutingyean/agent-cockpit\",\"mcp\",\"--repo\",\"$PWD\"]" \
   -c 'mcp_servers.cockpit.default_tools_approval_mode="approve"' \
   --sandbox workspace-write "Follow the rules in AGENTS.md. Task: ..."
 ```
