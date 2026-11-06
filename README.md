@@ -63,12 +63,12 @@ No clone needed:
 
 ```bash
 cd /path/to/your-research                                   # must be a git repo
-npx -y @chutingyean/agent-cockpit init                      # MCP configs, AGENTS.md, Stop hook, pre-commit
-npx -y @chutingyean/agent-cockpit serve                     # the board
-npx -y @chutingyean/agent-cockpit run -- python3 train.py   # run experiments through the cockpit
+npx -y @tingyen/agent-cockpit init                      # MCP configs, AGENTS.md, Stop hook, pre-commit
+npx -y @tingyen/agent-cockpit serve                     # the board
+npx -y @tingyen/agent-cockpit run -- python3 train.py   # run experiments through the cockpit
 ```
 
-Prefer a permanent `cockpit` command? `npm install -g @chutingyean/agent-cockpit`.
+Prefer a permanent `cockpit` command? `npm install -g @tingyen/agent-cockpit`.
 
 `init` only writes inside your repo. Open the repo in your agent and it reads `AGENTS.md` and the MCP config. The [tutorial](docs/tutorial.md) walks through every agent step by step.
 
@@ -109,7 +109,7 @@ Canvas tools: `canvas_list`, `canvas_read`, `canvas_search`, `canvas_createNode`
 
 ## CLI
 
-`npm install -g @chutingyean/agent-cockpit` gives you a global `cockpit` command. Otherwise use `npx -y @chutingyean/agent-cockpit <command>`, or `node bin/cockpit.mjs` from a clone.
+`npm install -g @tingyen/agent-cockpit` gives you a global `cockpit` command. Otherwise use `npx -y @tingyen/agent-cockpit <command>`, or `node bin/cockpit.mjs` from a clone.
 
 | Command | Purpose |
 |---|---|

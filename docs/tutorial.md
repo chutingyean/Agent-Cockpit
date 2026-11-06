@@ -27,10 +27,10 @@ This tutorial starts with the demo project so you can learn to read the board, t
 You do not need graphify or open-code-review: Agent Cockpit ships lightweight built-in versions and switches to the real tools when they are installed.
 
 ```bash
-npm install -g @chutingyean/agent-cockpit     # gives you the `cockpit` command
+npm install -g @tingyen/agent-cockpit     # gives you the `cockpit` command
 ```
 
-Or run any command without installing: `npx -y @chutingyean/agent-cockpit <command>`. To work on Agent Cockpit itself, clone the repo, run `npm install` and `npm test` (about 4 seconds), and use `node bin/cockpit.mjs`.
+Or run any command without installing: `npx -y @tingyen/agent-cockpit <command>`. To work on Agent Cockpit itself, clone the repo, run `npm install` and `npm test` (about 4 seconds), and use `node bin/cockpit.mjs`.
 
 (In a clone, `cockpit demo` builds the demo project in `demo/research` instead of `./agent-cockpit-demo`.)
 
@@ -151,7 +151,7 @@ Leaving out Bash is deliberate: the agent can only run code through `cockpit_run
 ### 4.2 Codex
 
 ```bash
-codex mcp add cockpit -- npx -y @chutingyean/agent-cockpit mcp --repo "$PWD"
+codex mcp add cockpit -- npx -y @tingyen/agent-cockpit mcp --repo "$PWD"
 ```
 
 `codex exec` (headless) does not allow MCP tool calls by default. Without touching your global config, pass the server on the command line:
@@ -159,7 +159,7 @@ codex mcp add cockpit -- npx -y @chutingyean/agent-cockpit mcp --repo "$PWD"
 ```bash
 codex exec \
   -c 'mcp_servers.cockpit.command="npx"' \
-  -c "mcp_servers.cockpit.args=[\"-y\",\"@chutingyean/agent-cockpit\",\"mcp\",\"--repo\",\"$PWD\"]" \
+  -c "mcp_servers.cockpit.args=[\"-y\",\"@tingyen/agent-cockpit\",\"mcp\",\"--repo\",\"$PWD\"]" \
   -c 'mcp_servers.cockpit.default_tools_approval_mode="approve"' \
   --sandbox workspace-write "Follow the rules in AGENTS.md. Task: ..."
 ```

@@ -8,7 +8,7 @@ import { git } from './repo.mjs';
 import { RULES } from './mcp.mjs';
 
 const BIN = fileURLToPath(new URL('../bin/cockpit.mjs', import.meta.url));
-export const PKG = '@chutingyean/agent-cockpit';
+export const PKG = '@tingyen/agent-cockpit';
 const START = '<!-- agent-cockpit:start -->', END = '<!-- agent-cockpit:end -->';
 
 const readJson = f => { try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return {}; } };

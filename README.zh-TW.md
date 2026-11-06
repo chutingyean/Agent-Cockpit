@@ -63,12 +63,12 @@ node bin/cockpit.mjs demo --restore    # 改回來：雜湊對上，結論恢復
 
 ```bash
 cd /path/to/your-research                                   # 必須是 git repo
-npx -y @chutingyean/agent-cockpit init                      # MCP 設定、AGENTS.md、Stop hook、pre-commit
-npx -y @chutingyean/agent-cockpit serve                     # 白板
-npx -y @chutingyean/agent-cockpit run -- python3 train.py   # 實驗一律透過 cockpit 跑
+npx -y @tingyen/agent-cockpit init                      # MCP 設定、AGENTS.md、Stop hook、pre-commit
+npx -y @tingyen/agent-cockpit serve                     # 白板
+npx -y @tingyen/agent-cockpit run -- python3 train.py   # 實驗一律透過 cockpit 跑
 ```
 
-想要固定的 `cockpit` 指令：`npm install -g @chutingyean/agent-cockpit`。
+想要固定的 `cockpit` 指令：`npm install -g @tingyen/agent-cockpit`。
 
 `init` 只會寫在你的專案資料夾裡。用 agent 打開專案，它就會讀到 `AGENTS.md` 和 MCP 設定。各家 agent 的接法見[教學](docs/tutorial.zh-TW.md)。
 
@@ -109,7 +109,7 @@ claude plugin install agent-cockpit@agent-cockpit
 
 ## 命令列
 
-`npm install -g @chutingyean/agent-cockpit` 之後就有全域的 `cockpit` 指令；否則用 `npx -y @chutingyean/agent-cockpit <指令>`，或在 clone 下來的資料夾用 `node bin/cockpit.mjs`。
+`npm install -g @tingyen/agent-cockpit` 之後就有全域的 `cockpit` 指令；否則用 `npx -y @tingyen/agent-cockpit <指令>`，或在 clone 下來的資料夾用 `node bin/cockpit.mjs`。
 
 | 指令 | 用途 |
 |---|---|

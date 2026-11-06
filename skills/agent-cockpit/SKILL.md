@@ -14,13 +14,13 @@ The cockpit's own messages (rejections, overview, board text) are in Traditional
 Check whether the `cockpit_overview` tool is available and the repo has a `.cockpit/` folder. If not, and the user wants Agent Cockpit:
 
 ```bash
-npx -y @chutingyean/agent-cockpit init      # run in the repo root; it must be a git repo
+npx -y @tingyen/agent-cockpit init      # run in the repo root; it must be a git repo
 ```
 
 `init` writes the MCP config for Claude Code, Cursor, VS Code and Gemini CLI, adds the rules to `AGENTS.md`, a Claude Code Stop hook and a git pre-commit hook. It prints the command for Codex. Tell the user to restart the agent session so the `cockpit` MCP server loads, and to open the board:
 
 ```bash
-npx -y @chutingyean/agent-cockpit serve     # http://127.0.0.1:4180
+npx -y @tingyen/agent-cockpit serve     # http://127.0.0.1:4180
 ```
 
 ## 2. Start of every session

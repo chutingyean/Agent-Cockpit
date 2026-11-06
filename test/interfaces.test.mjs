@@ -126,7 +126,7 @@ test('cockpit init：寫好四種 agent 的 MCP 設定、規則檔、Stop hook�
   assert.equal(openCockpit(root).view().D.unreported.length, 0);
   // 從 npx 的暫存資料夾執行時改用 npx 指令（那個路徑之後可能被清掉）；git clone 或全域安裝用絕對路徑
   assert.deepEqual(launcher(path.join('/home/u/.npm/_npx/ab12/node_modules', PKG, 'bin/cockpit.mjs'), '/usr/bin/node'), ['npx', ['-y', PKG]]);
-  assert.deepEqual(launcher('/usr/lib/node_modules/@chutingyean/agent-cockpit/bin/cockpit.mjs', '/usr/bin/node'), ['/usr/bin/node', ['/usr/lib/node_modules/@chutingyean/agent-cockpit/bin/cockpit.mjs']]);
+  assert.deepEqual(launcher('/usr/lib/node_modules/@tingyen/agent-cockpit/bin/cockpit.mjs', '/usr/bin/node'), ['/usr/bin/node', ['/usr/lib/node_modules/@tingyen/agent-cockpit/bin/cockpit.mjs']]);
 });
 
 test('拖過的卡位置保留：白板送出 node_moved 之後，新事件重新排版、重開駕駛艙、畫布投影都維持原位；重播到拖之前是自動排版的位置', async () => {

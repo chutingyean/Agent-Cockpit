@@ -1,5 +1,5 @@
 {
-  "name": "@chutingyean/agent-cockpit",
+  "name": "@tingyen/agent-cockpit",
   "mcpName": "io.github.chutingyean/agent-cockpit",
   "version": "0.1.0",
   "description": "An evidence-chain whiteboard and MCP server that keeps AI research agents honest: every claim traces back to the run and the code that produced it.",

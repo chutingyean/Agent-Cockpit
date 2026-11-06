@@ -27,10 +27,10 @@
 不需要另外安裝 graphify 或 open-code-review：Agent Cockpit 內建了它們的輕量版，有裝真的工具時會自動改用。
 
 ```bash
-npm install -g @chutingyean/agent-cockpit     # 之後就有 cockpit 指令
+npm install -g @tingyen/agent-cockpit     # 之後就有 cockpit 指令
 ```
 
-也可以不安裝，直接用 `npx -y @chutingyean/agent-cockpit <指令>`。要修改 Agent Cockpit 本身，請 clone repo，執行 `npm install` 與 `npm test`（約 4 秒），再用 `node bin/cockpit.mjs`。
+也可以不安裝，直接用 `npx -y @tingyen/agent-cockpit <指令>`。要修改 Agent Cockpit 本身，請 clone repo，執行 `npm install` 與 `npm test`（約 4 秒），再用 `node bin/cockpit.mjs`。
 
 （在 clone 下來的資料夾裡，`cockpit demo` 會把示範專案建在 `demo/research`，而不是 `./agent-cockpit-demo`。）
 
@@ -151,7 +151,7 @@ claude -p "照 AGENTS.md 的規範工作。任務：……" \
 ### 4.2 Codex
 
 ```bash
-codex mcp add cockpit -- npx -y @chutingyean/agent-cockpit mcp --repo "$PWD"
+codex mcp add cockpit -- npx -y @tingyen/agent-cockpit mcp --repo "$PWD"
 ```
 
 `codex exec`（headless）預設不允許呼叫 MCP 工具。不想改全域設定，可以每次用 `-c` 臨時指定：
@@ -159,7 +159,7 @@ codex mcp add cockpit -- npx -y @chutingyean/agent-cockpit mcp --repo "$PWD"
 ```bash
 codex exec \
   -c 'mcp_servers.cockpit.command="npx"' \
-  -c "mcp_servers.cockpit.args=[\"-y\",\"@chutingyean/agent-cockpit\",\"mcp\",\"--repo\",\"$PWD\"]" \
+  -c "mcp_servers.cockpit.args=[\"-y\",\"@tingyen/agent-cockpit\",\"mcp\",\"--repo\",\"$PWD\"]" \
   -c 'mcp_servers.cockpit.default_tools_approval_mode="approve"' \
   --sandbox workspace-write "照 AGENTS.md 的規範工作。任務：……"
 ```
